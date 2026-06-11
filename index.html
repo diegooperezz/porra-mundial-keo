@@ -154,28 +154,6 @@
     .lock-option-title { font-size: 14px; font-weight: 600; color: var(--text); }
     .lock-option-desc { font-size: 12px; color: var(--text2); margin-top: 2px; line-height: 1.4; }
 
-
-
-    /* GROUP PRED TAB */
-    .grouppred-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
-    .grouppred-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-    .grouppred-head { padding: 10px 14px; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
-    .grouppred-body { padding: 10px 14px; }
-    .drag-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
-    .drag-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface2); cursor: grab; user-select: none; font-size: 14px; font-weight: 500; }
-    .drag-item.dragging { opacity: 0.4; }
-    .drag-item.drag-over { border-color: var(--green); background: var(--green-bg); }
-    .drag-item:active { cursor: grabbing; }
-    .drag-item.locked-item { cursor: default; opacity: 0.7; }
-    .pos-num { font-size: 12px; color: var(--text3); width: 16px; flex-shrink: 0; }
-    .pos-correct { color: var(--green-text); font-weight: 700; }
-    .pos-wrong { color: var(--red-text); }
-    .real-order { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
-    .real-order-label { font-size: 11px; color: var(--text3); margin-bottom: 6px; }
-    .real-team-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; }
-    .grouppred-pts { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
-
-
     /* STANDINGS PREDICTION */
     .standings-info { padding: 11px 14px; background: var(--amber-bg); border-radius: var(--radius-sm); font-size: 13px; color: var(--amber-text); margin-bottom: 1.25rem; line-height: 1.5; }
     .standings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
@@ -275,7 +253,6 @@
     <button class="tab active" onclick="showTab('picks')">Fase de grupos</button>
     <button class="tab" onclick="showTab('knockout')">Eliminatorias</button>
     <button class="tab" onclick="showTab('ranking')">Clasificación</button>
-    <button class="tab" onclick="showTab('grouppred')">Clasificación grupos</button>
     <button class="tab" onclick="showTab('standings')">Clasificación grupos</button>
     <button class="tab" onclick="showTab('compare')">Predicciones</button>
     <button class="tab" onclick="showTab('settings')" id="tab-settings-btn" style="display:none">Ajustes</button>
@@ -331,27 +308,6 @@
       Los cruces se calculan automáticamente al completarse los grupos.
     </div>
     <div id="knockout-container"></div>
-  </section>
-
-
-  <!-- GROUP PRED -->
-  <section id="tab-grouppred" style="display:none">
-    <div class="session-bar">
-      <div class="session-name">
-        <span id="grouppred-session-label">—</span>
-        <span class="role-badge" id="grouppred-role-badge"></span>
-      </div>
-      <button class="btn btn-sm" onclick="logout()">Cambiar usuario</button>
-    </div>
-    <div id="grouppred-lock-banner" class="lock-banner" style="display:none">
-      <span class="lock-icon">🔒</span>
-      <span>El plazo para predecir clasificaciones de grupo ha terminado (21:00 del 12 jun).</span>
-    </div>
-    <div class="info-box">
-      <strong>Predice el orden final de cada grupo.</strong> Arrastra los equipos para ordenarlos.<br>
-      <strong>Puntos:</strong> 3 pts por cada posición acertada · Si aciertas las 4 posiciones: 10 pts (bonus de 2 extra)
-    </div>
-    <div class="grouppred-grid" id="grouppred-grid"></div>
   </section>
 
 
@@ -1207,82 +1163,7 @@ function isGroupPredOpen() {
   return new Date() < GROUP_PRED_DEADLINE;
 }
 
-function renderGroupPred() {
-  if (!session) return;
-  const pidx = session.playerIdx;
-  const isAdmin = session.isAdmin;
-  const open = isGroupPredOpen();
 
-  // session bar
-  const name = isAdmin ? '🔑 Árbitro' : remoteData.players[pidx];
-  const badge = isAdmin ? '<span class="role-badge role-admin">Árbitro</span>' : '<span class="role-badge role-player">Jugador</span>';
-  const nl = document.getElementById('grouppred-session-label');
-  const nb = document.getElementById('grouppred-role-badge');
-  if (nl) nl.textContent = name;
-  if (nb) nb.innerHTML = badge;
-
-  const lockBanner = document.getElementById('grouppred-lock-banner');
-  if (lockBanner) lockBanner.style.display = (!isAdmin && !open) ? 'flex' : 'none';
-
-  const grid = document.getElementById('grouppred-grid');
-  if (!grid) return;
-
-  grid.innerHTML = Object.keys(GROUPS).map(g => {
-    const grp = GROUPS[g];
-    const pred = (remoteData.groupPreds || {})[pidx]?.[g] || [...grp.teams];
-    const { sorted, complete } = groupStandings(g);
-    const pts = calcGroupPredPts(pidx, g);
-    const canEdit = !isAdmin && open;
-
-    // real order display (only if group complete)
-    const realOrderHtml = complete ? `
-      <div class="real-order">
-        <div class="real-order-label">Clasificación real:</div>
-        ${sorted.map((t, i) => {
-          const predPos = pred.indexOf(t.team);
-          const correct = predPos === i;
-          return `<div class="real-team-row">
-            <span class="pos-num ${correct ? 'pos-correct' : 'pos-wrong'}">${i+1}º</span>
-            <span>${t.team}</span>
-            ${correct ? '<span style="font-size:11px;color:var(--green-text)">✓</span>' : ''}
-          </div>`;
-        }).join('')}
-      </div>` : '';
-
-    const ptsBadge = pts !== null
-      ? `<span class="grouppred-pts ${pts >= 10 ? 'pts-3' : pts > 0 ? 'pts-1' : 'pts-0'}">${pts} pts</span>`
-      : '';
-
-    const items = pred.map((team, i) => {
-      const realPos = complete ? sorted.findIndex(t => t.team === team) : -1;
-      const correct = complete && realPos === i;
-      const wrong = complete && realPos !== i;
-      return `<li class="drag-item ${canEdit ? '' : 'locked-item'}"
-        draggable="${canEdit}"
-        data-team="${team}"
-        data-group="${g}"
-        ${canEdit ? `ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropItem(event,'${g}',${pidx})" ondragend="dragEnd(event)"` : ''}>
-        <span class="pos-num ${correct ? 'pos-correct' : wrong ? 'pos-wrong' : ''}">${i+1}º</span>
-        <span>${team}</span>
-        ${correct ? '<span style="margin-left:auto;font-size:11px;color:var(--green-text)">✓</span>' : ''}
-        ${wrong && complete ? `<span style="margin-left:auto;font-size:11px;color:var(--text3)">${realPos+1}º real</span>` : ''}
-        ${canEdit ? '<span style="margin-left:auto;color:var(--text3);font-size:16px">⠿</span>' : ''}
-      </li>`;
-    }).join('');
-
-    return `<div class="grouppred-card">
-      <div class="grouppred-head">
-        <span class="group-letter">Grupo ${g}</span>
-        <span class="group-teams-list" style="flex:1">${grp.teams.join(' · ')}</span>
-        ${ptsBadge}
-      </div>
-      <div class="grouppred-body">
-        <ul class="drag-list" id="draglist-${g}-${pidx}">${items}</ul>
-        ${realOrderHtml}
-      </div>
-    </div>`;
-  }).join('');
-}
 
 // Drag & drop
 let dragSrc = null;
@@ -1402,8 +1283,8 @@ function renderStandings() {
     const realOrder = complete ? sorted.map(s => s.team) : null;
     const pts = isAdmin ? null : standingsPts(pidx, g);
 
-    const ptsLabel = pts === null ? ''
-      : `<span class="standings-pts-badge ${pts===10?'pts-3':pts>0?'pts-1':'pts-0'}">${pts} pts</span>`;
+    const ptsLabel = `<span class="standings-pts-badge ${pts===10?'pts-3':pts>0?'pts-1':pts===0?'pts-0':'pts-n'}"
+      id="standings-pts-${g}" style="${pts===null?'display:none':''}">${pts!==null?pts+' pts':''}</span>`;
 
     const positions = [1,2,3,4].map(pos => {
       const i = pos - 1;
@@ -1419,7 +1300,7 @@ function renderStandings() {
       const dis = (!isAdmin && !open) || complete ? 'disabled' : '';
       return `<div class="standings-pick-row">
         <span class="standings-pos">${pos}º</span>
-        <select class="standings-select" ${dis}
+        <select class="standings-select" data-grp="${g}" ${dis}
           onchange="setStandingsPick(${pidx},'${g}',${i},this.value)">
           <option value="">— Elige —</option>
           ${options.join('')}
@@ -1451,8 +1332,28 @@ function setStandingsPick(pidx, grp, pos, team) {
   if (!remoteData.standingsPicks[pidx][grp]) remoteData.standingsPicks[pidx][grp] = ['','','',''];
   remoteData.standingsPicks[pidx][grp][pos] = team;
   fbSet(`standingsPicks/${pidx}/${grp}`, remoteData.standingsPicks[pidx][grp]);
-  // re-render to update disabled options
-  renderStandings();
+  // Update disabled state of other selects in this group without full re-render
+  updateStandingsSelects(pidx, grp);
+}
+
+function updateStandingsSelects(pidx, grp) {
+  const pred = remoteData.standingsPicks[pidx][grp];
+  const selects = document.querySelectorAll(`.standings-select[data-grp="${grp}"]`);
+  selects.forEach((sel, i) => {
+    const otherChosen = pred.filter((t, j) => j !== i && t);
+    Array.from(sel.options).forEach(opt => {
+      if (!opt.value) return;
+      opt.disabled = otherChosen.includes(opt.value);
+    });
+  });
+  // Update pts badge
+  const badge = document.getElementById(`standings-pts-${grp}`);
+  if (badge) {
+    const pts = standingsPts(pidx, grp);
+    badge.textContent = pts !== null ? pts + ' pts' : '';
+    badge.className = 'standings-pts-badge ' + (pts === 10 ? 'pts-3' : pts > 0 ? 'pts-1' : pts === 0 ? 'pts-0' : 'pts-n');
+    badge.style.display = pts !== null ? '' : 'none';
+  }
 }
 
 // ══════════════════════════════════════════
