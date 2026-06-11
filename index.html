@@ -542,10 +542,12 @@ function initFirebase() {
         realScores: d.realScores || {},
         koRealScores: d.koRealScores || {},
       };
+      renderLoginButtons();
       renderAll();
     });
   } catch(e) {
     setSyncStatus(false);
+    renderLoginButtons();
     renderAll();
   }
 }
@@ -1010,7 +1012,6 @@ function showTab(name) {
 // ARRANQUE
 // ══════════════════════════════════════════
 initFirebase();
-renderLoginButtons();
 updateLockIndicator();
 </script>
 </body>
