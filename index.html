@@ -588,6 +588,7 @@ let remoteData = {
   adminPin: '0000',
   lockMode: 'auto', // 'auto' | 'open' | 'closed'
   picks: {}, koPicks: {},
+  standingsPicks: {}, standingsSaved: {},
   realScores: {}, koRealScores: {},
 };
 
@@ -1264,6 +1265,7 @@ function renderStandings() {
   const viewPidx = session.isAdmin ? 0 : pidx;
   const isAdmin = session.isAdmin;
   const open = isStandingsOpen();
+  const saved = isAdmin ? false : !!(remoteData.standingsSaved || {})[viewPidx];
 
   // session bar
   const name = isAdmin ? '🔑 Árbitro' : remoteData.players[pidx];
@@ -1281,26 +1283,17 @@ function renderStandings() {
   const grid = document.getElementById('standings-grid');
   if (!grid) return;
 
-  // Save current select values before re-render
-  const savedValues = {};
-  grid.querySelectorAll('.standings-select').forEach(sel => {
-    const key = sel.dataset.grp + '-' + sel.dataset.pos;
-    savedValues[key] = sel.value;
-  });
-
   const allPicks = remoteData.standingsPicks || {};
   const myPicks = isAdmin ? (allPicks[0] || {}) : (allPicks[viewPidx] || {});
 
-  // Store pidx for save button
+  // Store pidx for save button — only show if not yet saved and window open
   window._standingsPidx = viewPidx;
-  // Show save row only for players (not admin), and only if window is open
   const saveRow = document.getElementById('standings-save-row');
-  if (saveRow) saveRow.style.display = (!isAdmin && open) ? '' : 'none';
+  if (saveRow) saveRow.style.display = (!isAdmin && open && !saved) ? '' : 'none';
 
   grid.innerHTML = Object.keys(GROUPS).map(g => {
     const teams = GROUPS[g].teams;
     const rawPred = myPicks[g] || [];
-    // Firebase may return array-as-object {0:'x',1:'y'...} — normalize to real array
     const pred = [0,1,2,3].map(i => (Array.isArray(rawPred) ? rawPred[i] : rawPred[i]) || '');
     const { sorted, complete } = groupStandings(g);
     const realOrder = complete ? sorted.map(s => s.team) : null;
@@ -1309,25 +1302,40 @@ function renderStandings() {
     const ptsLabel = `<span class="standings-pts-badge ${pts===10?'pts-3':pts>0?'pts-1':pts===0?'pts-0':'pts-n'}"
       id="standings-pts-${g}" ${pts===null?'style="display:none"':''}>${pts!==null?pts+' pts':''}</span>`;
 
-    const positions = [0,1,2,3].map(i => {
-      const chosen = pred[i] || '';
-      const otherChosen = pred.filter((t,j) => j !== i && t);
-      const options = teams.map(t => {
-        const dis = otherChosen.includes(t) ? 'disabled' : '';
-        const sel2 = chosen === t ? 'selected' : '';
-        return `<option value="${t}" ${sel2} ${dis}>${t}</option>`;
+    let positionsHtml;
+    if (saved || !open || isAdmin) {
+      // Static view — show as text labels, no selects
+      positionsHtml = [0,1,2,3].map(i => {
+        const team = pred[i] || '—';
+        const isCorrect = realOrder && pred[i] && realOrder[i] === pred[i];
+        const isWrong = realOrder && pred[i] && realOrder[i] !== pred[i];
+        const dot = isCorrect ? '✅' : isWrong ? '❌' : '';
+        return `<div class="standings-pick-row">
+          <span class="standings-pos">${i+1}º</span>
+          <span style="flex:1;padding:7px 10px;font-size:13px;font-weight:500;color:${team==='—'?'var(--text3)':'var(--text)'}">${team}</span>
+          ${dot ? `<span style="font-size:14px">${dot}</span>` : ''}
+        </div>`;
       }).join('');
-
-      const dis = (!isAdmin && !open) || complete ? 'disabled' : '';
-      return `<div class="standings-pick-row">
-        <span class="standings-pos">${i+1}º</span>
-        <select class="standings-select" data-grp="${g}" data-pos="${i}" ${dis}
-          onchange="setStandingsPick(${viewPidx},'${g}',${i},this.value)">
-          <option value="">— Elige —</option>
-          ${options}
-        </select>
-      </div>`;
-    }).join('');
+    } else {
+      // Editable selects
+      positionsHtml = [0,1,2,3].map(i => {
+        const chosen = pred[i] || '';
+        const otherChosen = pred.filter((t,j) => j !== i && t);
+        const options = teams.map(t => {
+          const dis = otherChosen.includes(t) ? 'disabled' : '';
+          const sel2 = chosen === t ? 'selected' : '';
+          return `<option value="${t}" ${sel2} ${dis}>${t}</option>`;
+        }).join('');
+        return `<div class="standings-pick-row">
+          <span class="standings-pos">${i+1}º</span>
+          <select class="standings-select" data-grp="${g}" data-pos="${i}"
+            onchange="setStandingsPick(${viewPidx},'${g}',${i},this.value)">
+            <option value="">— Elige —</option>
+            ${options}
+          </select>
+        </div>`;
+      }).join('');
+    }
 
     const realBlock = realOrder ? `
       <div class="standings-real-row">
@@ -1341,12 +1349,12 @@ function renderStandings() {
         <span class="group-teams-list">${teams.join(' · ')}</span>
         ${ptsLabel}
       </div>
-      <div class="standings-rows">${positions}</div>
+      <div class="standings-rows">${positionsHtml}</div>
       ${realBlock}
     </div>`;
   }).join('');
 
-  updateStandingsSaveBtn(viewPidx);
+  if (!saved && open && !isAdmin) updateStandingsSaveBtn(viewPidx);
 }
 
 function setStandingsPick(pidx, grp, pos, team) {
@@ -1395,20 +1403,21 @@ function saveStandingsPicks(pidx) {
   const allPicks = remoteData.standingsPicks || {};
   const myPicks = allPicks[pidx] || {};
   const incomplete = Object.keys(GROUPS).filter(g => {
-    const p = myPicks[g] || [];
-    return p.length !== 4 || !p.every(t => t && t !== '');
+    const raw = myPicks[g] || [];
+    const p = [0,1,2,3].map(i => (Array.isArray(raw) ? raw[i] : raw[i]) || '');
+    return !p.every(t => t && t !== '');
   });
   if (incomplete.length > 0) {
     alert('Faltan grupos por completar: ' + incomplete.map(g => 'Grupo ' + g).join(', '));
     return;
   }
-  // Write all to Firebase at once
+  // Mark as saved locally and in Firebase
+  if (!remoteData.standingsSaved) remoteData.standingsSaved = {};
+  remoteData.standingsSaved[pidx] = true;
   fbSet('standingsPicks/' + pidx, myPicks);
-  const btn = document.getElementById('standings-save-btn');
-  if (btn) {
-    btn.textContent = '✅ ¡Guardado!';
-    setTimeout(() => updateStandingsSaveBtn(pidx), 2000);
-  }
+  fbSet('standingsSaved/' + pidx, true);
+  // Re-render to show static view (no more selects)
+  renderStandings();
 }
 
 // ══════════════════════════════════════════
@@ -1587,15 +1596,17 @@ function renderCompareByStandings() {
     const { sorted, complete } = groupStandings(g);
     const realOrder = complete ? sorted.map(s => s.team) : null;
 
-    // Header row with player names
     const headerCols = players.map(p => `<th style="text-align:center;min-width:90px">${p}</th>`).join('');
 
-    // For each position (1-4), show what each player predicted
     const rows = [0,1,2,3].map(pos => {
-      const posLabel = `${pos+1}º`;
       const cols = players.map((p, pidx) => {
-        const pred = ((remoteData.standingsPicks || {})[pidx] || {})[g] || [];
+        const raw = ((remoteData.standingsPicks || {})[pidx] || {})[g] || [];
+        const pred = [0,1,2,3].map(i => (Array.isArray(raw) ? raw[i] : raw[i]) || '');
+        const saved = !!(remoteData.standingsSaved || {})[pidx];
         const team = pred[pos] || null;
+        if (!saved && !team) {
+          return `<td><span style="color:var(--text3);font-size:12px">—</span></td>`;
+        }
         const isCorrect = realOrder && team && realOrder[pos] === team;
         const isWrong = realOrder && team && realOrder[pos] !== team;
         const cls = isCorrect ? 'pts-3' : isWrong ? 'pts-0' : 'pts-n';
@@ -1606,16 +1617,17 @@ function renderCompareByStandings() {
         </td>`;
       }).join('');
 
-      const realTeam = realOrder ? `<td style="font-weight:700;font-size:13px;color:var(--green-text);background:var(--green-bg)">${realOrder[pos]}</td>` : `<td style="color:var(--text3);font-size:12px">Pendiente</td>`;
+      const realTeam = realOrder
+        ? `<td style="font-weight:700;font-size:13px;color:var(--green-text);background:var(--green-bg)">${realOrder[pos]}</td>`
+        : `<td style="color:var(--text3);font-size:12px">Pendiente</td>`;
 
       return `<tr>
-        <td style="font-weight:700;color:var(--text2);font-size:13px;padding:8px 10px">${posLabel}</td>
+        <td style="font-weight:700;color:var(--text2);font-size:13px;padding:8px 10px">${pos+1}º</td>
         ${realTeam}
         ${cols}
       </tr>`;
     }).join('');
 
-    // Points row
     const ptsRow = `<tr style="border-top:2px solid var(--border)">
       <td colspan="2" style="font-size:12px;font-weight:600;color:var(--text2);padding:8px 10px">Pts grupo</td>
       ${players.map((_,pidx) => {
