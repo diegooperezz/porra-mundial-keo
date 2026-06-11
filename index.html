@@ -253,7 +253,7 @@
     <button class="tab active" onclick="showTab('picks')">Fase de grupos</button>
     <button class="tab" onclick="showTab('knockout')">Eliminatorias</button>
     <button class="tab" onclick="showTab('ranking')">Clasificación</button>
-    <button class="tab" onclick="showTab('standings')">Clasificación grupos</button>
+    <button class="tab" onclick="showTab('standings')">Resultados grupos</button>
     <button class="tab" onclick="showTab('compare')">Predicciones</button>
     <button class="tab" onclick="showTab('settings')" id="tab-settings-btn" style="display:none">Ajustes</button>
   </div>
@@ -343,7 +343,7 @@
       <div class="view-toggle">
         <button class="view-btn active" id="btn-view-match" onclick="setCompareView('match')">Por partido</button>
         <button class="view-btn" id="btn-view-player" onclick="setCompareView('player')">Por jugador</button>
-        <button class="view-btn" id="btn-view-standings" onclick="setCompareView('standings')">Clasificación grupos</button>
+        <button class="view-btn" id="btn-view-standings" onclick="setCompareView('standings')">Resultados grupos</button>
       </div>
       <select id="compare-group-filter" onchange="renderCompare()">
         <option value="all">Todos los grupos</option>
@@ -1253,7 +1253,8 @@ function totalStandingsPts(pidx) {
 
 function renderStandings() {
   if (!session) return;
-  const pidx = session.playerIdx;
+  const pidx = session.isAdmin ? -1 : session.playerIdx;
+  const viewPidx = session.isAdmin ? 0 : pidx;
   const isAdmin = session.isAdmin;
   const open = isStandingsOpen();
 
@@ -1273,44 +1274,49 @@ function renderStandings() {
   const grid = document.getElementById('standings-grid');
   if (!grid) return;
 
+  // Save current select values before re-render
+  const savedValues = {};
+  grid.querySelectorAll('.standings-select').forEach(sel => {
+    const key = sel.dataset.grp + '-' + sel.dataset.pos;
+    savedValues[key] = sel.value;
+  });
+
   const allPicks = remoteData.standingsPicks || {};
-  const myPicks = (allPicks[pidx] || {});
+  const myPicks = isAdmin ? (allPicks[0] || {}) : (allPicks[viewPidx] || {});
 
   grid.innerHTML = Object.keys(GROUPS).map(g => {
     const teams = GROUPS[g].teams;
     const pred = myPicks[g] || ['', '', '', ''];
     const { sorted, complete } = groupStandings(g);
     const realOrder = complete ? sorted.map(s => s.team) : null;
-    const pts = isAdmin ? null : standingsPts(pidx, g);
+    const pts = standingsPts(viewPidx, g);
 
     const ptsLabel = `<span class="standings-pts-badge ${pts===10?'pts-3':pts>0?'pts-1':pts===0?'pts-0':'pts-n'}"
-      id="standings-pts-${g}" style="${pts===null?'display:none':''}">${pts!==null?pts+' pts':''}</span>`;
+      id="standings-pts-${g}" ${pts===null?'style="display:none"':''}>${pts!==null?pts+' pts':''}</span>`;
 
-    const positions = [1,2,3,4].map(pos => {
-      const i = pos - 1;
+    const positions = [0,1,2,3].map(i => {
       const chosen = pred[i] || '';
-      // options: all teams, excluding already chosen in other positions
       const otherChosen = pred.filter((t,j) => j !== i && t);
       const options = teams.map(t => {
-        const disabled = otherChosen.includes(t) ? 'disabled' : '';
-        const selected = chosen === t ? 'selected' : '';
-        return `<option value="${t}" ${selected} ${disabled}>${t}</option>`;
-      });
+        const dis = otherChosen.includes(t) ? 'disabled' : '';
+        const sel2 = chosen === t ? 'selected' : '';
+        return `<option value="${t}" ${sel2} ${dis}>${t}</option>`;
+      }).join('');
 
       const dis = (!isAdmin && !open) || complete ? 'disabled' : '';
       return `<div class="standings-pick-row">
-        <span class="standings-pos">${pos}º</span>
-        <select class="standings-select" data-grp="${g}" ${dis}
-          onchange="setStandingsPick(${pidx},'${g}',${i},this.value)">
+        <span class="standings-pos">${i+1}º</span>
+        <select class="standings-select" data-grp="${g}" data-pos="${i}" ${dis}
+          onchange="setStandingsPick(${viewPidx},'${g}',${i},this.value)">
           <option value="">— Elige —</option>
-          ${options.join('')}
+          ${options}
         </select>
       </div>`;
     }).join('');
 
     const realBlock = realOrder ? `
       <div class="standings-real-row">
-        <span style="margin-right:4px;font-weight:500">Resultado final:</span>
+        <span style="margin-right:6px;font-weight:500">Final:</span>
         ${realOrder.map((t,i) => `<span class="standings-pos-real">${i+1}º</span><span class="standings-real-team">${t}</span>`).join('<span style="color:var(--border-strong);margin:0 4px">·</span>')}
       </div>` : '';
 
@@ -1331,16 +1337,10 @@ function setStandingsPick(pidx, grp, pos, team) {
   if (!remoteData.standingsPicks[pidx]) remoteData.standingsPicks[pidx] = {};
   if (!remoteData.standingsPicks[pidx][grp]) remoteData.standingsPicks[pidx][grp] = ['','','',''];
   remoteData.standingsPicks[pidx][grp][pos] = team;
-  fbSet(`standingsPicks/${pidx}/${grp}`, remoteData.standingsPicks[pidx][grp]);
-  // Update disabled state of other selects in this group without full re-render
-  updateStandingsSelects(pidx, grp);
-}
-
-function updateStandingsSelects(pidx, grp) {
+  // Update disabled options in sibling selects without full re-render
   const pred = remoteData.standingsPicks[pidx][grp];
-  const selects = document.querySelectorAll(`.standings-select[data-grp="${grp}"]`);
-  selects.forEach((sel, i) => {
-    const otherChosen = pred.filter((t, j) => j !== i && t);
+  document.querySelectorAll(`.standings-select[data-grp="${grp}"]`).forEach((sel, i) => {
+    const otherChosen = pred.filter((t,j) => j !== i && t);
     Array.from(sel.options).forEach(opt => {
       if (!opt.value) return;
       opt.disabled = otherChosen.includes(opt.value);
@@ -1351,9 +1351,14 @@ function updateStandingsSelects(pidx, grp) {
   if (badge) {
     const pts = standingsPts(pidx, grp);
     badge.textContent = pts !== null ? pts + ' pts' : '';
-    badge.className = 'standings-pts-badge ' + (pts === 10 ? 'pts-3' : pts > 0 ? 'pts-1' : pts === 0 ? 'pts-0' : 'pts-n');
+    badge.className = `standings-pts-badge ${pts===10?'pts-3':pts>0?'pts-1':pts===0?'pts-0':'pts-n'}`;
     badge.style.display = pts !== null ? '' : 'none';
   }
+  // Write to Firebase (debounced to avoid re-render loop)
+  clearTimeout(window._standingsTimer);
+  window._standingsTimer = setTimeout(() => {
+    fbSet(`standingsPicks/${pidx}/${grp}`, remoteData.standingsPicks[pidx][grp]);
+  }, 600);
 }
 
 // ══════════════════════════════════════════
@@ -1594,17 +1599,21 @@ function renderCompareByStandings() {
 // TABS
 // ══════════════════════════════════════════
 function showTab(name) {
+  // Show/hide sections
   ['picks','knockout','standings','compare','ranking','settings'].forEach(t => {
-    document.getElementById('tab-'+t).style.display = t===name?'':'none';
+    const el = document.getElementById('tab-'+t);
+    if (el) el.style.display = t === name ? '' : 'none';
   });
-  document.querySelectorAll('.tab').forEach((btn,i) => {
-    btn.classList.toggle('active', ['picks','knockout','standings','ranking','compare','settings'][i]===name);
+  // Highlight correct button by matching onclick attribute
+  document.querySelectorAll('.tab').forEach(btn => {
+    const match = btn.getAttribute('onclick') && btn.getAttribute('onclick').includes("'"+name+"'");
+    btn.classList.toggle('active', !!match);
   });
-  if (name==='knockout') renderKnockout();
-  if (name==='ranking') renderRanking();
-  if (name==='standings') renderStandings();
-  if (name==='compare') renderCompare();
-  if (name==='settings') renderSettingsPlayers();
+  if (name === 'knockout') renderKnockout();
+  if (name === 'ranking') renderRanking();
+  if (name === 'standings') renderStandings();
+  if (name === 'compare') renderCompare();
+  if (name === 'settings') renderSettingsPlayers();
 }
 
 // ══════════════════════════════════════════
