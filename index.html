@@ -166,7 +166,7 @@
 <body>
 
 <!-- LOGIN OVERLAY -->
-<div class="login-overlay" id="login-overlay">
+<div class="login-overlay" id="login-overlay" style="display:none">
   <div class="login-card">
     <div id="login-step-choose">
       <h2>⚽ Porra Mundial 2026</h2>
@@ -543,11 +543,13 @@ function initFirebase() {
         koRealScores: d.koRealScores || {},
       };
       renderLoginButtons();
+      if (!session) document.getElementById('login-overlay').style.display = 'flex';
       renderAll();
     });
   } catch(e) {
     setSyncStatus(false);
     renderLoginButtons();
+    if (!session) document.getElementById('login-overlay').style.display = 'flex';
     renderAll();
   }
 }
