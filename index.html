@@ -154,6 +154,36 @@
     .lock-option-title { font-size: 14px; font-weight: 600; color: var(--text); }
     .lock-option-desc { font-size: 12px; color: var(--text2); margin-top: 2px; line-height: 1.4; }
 
+
+    /* COMPARE TAB */
+    .compare-controls { display: flex; gap: 8px; margin-bottom: 1.25rem; flex-wrap: wrap; align-items: center; }
+    .view-toggle { display: flex; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; }
+    .view-btn { padding: 7px 14px; font-size: 13px; border: none; background: none; cursor: pointer; color: var(--text2); font-weight: 500; }
+    .view-btn.active { background: var(--text); color: var(--bg); }
+    .compare-table-wrap { overflow-x: auto; }
+    .compare-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .compare-table th { padding: 8px 10px; background: var(--surface2); border: 1px solid var(--border); font-weight: 600; font-size: 12px; color: var(--text2); white-space: nowrap; text-align: center; }
+    .compare-table th.match-col { text-align: left; min-width: 160px; }
+    .compare-table td { padding: 8px 10px; border: 1px solid var(--border); text-align: center; vertical-align: middle; }
+    .compare-table td.match-info { text-align: left; }
+    .compare-table tr:nth-child(even) td { background: var(--surface2); }
+    .compare-table tr:nth-child(odd) td { background: var(--surface); }
+    .pick-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .pick-score { font-weight: 600; font-size: 13px; }
+    .pick-score.pending { color: var(--text3); font-weight: 400; }
+    .real-score-cell { font-weight: 700; font-size: 14px; }
+    .match-name { font-weight: 500; font-size: 13px; }
+    .match-date-sm { font-size: 11px; color: var(--text3); }
+    .player-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 1.25rem; }
+    .player-card-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--surface2); border-bottom: 1px solid var(--border); }
+    .player-card-name { font-weight: 600; font-size: 15px; }
+    .player-card-pts { font-size: 13px; color: var(--text2); }
+    .player-picks-row { display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+    .player-picks-row:last-child { border-bottom: none; }
+    .player-picks-row.hidden-pick { opacity: 0.4; }
+    .hidden-label { font-size: 11px; color: var(--text3); font-style: italic; }
+    .group-section-label { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text2); background: var(--border); padding: 2px 8px; border-radius: 4px; margin-right: 4px; }
+
     @media (max-width: 560px) {
       .main { padding: 1rem; }
       .match { padding: 10px 12px; }
@@ -208,6 +238,7 @@
     <button class="tab active" onclick="showTab('picks')">Fase de grupos</button>
     <button class="tab" onclick="showTab('knockout')">Eliminatorias</button>
     <button class="tab" onclick="showTab('ranking')">Clasificación</button>
+    <button class="tab" onclick="showTab('compare')">Predicciones</button>
     <button class="tab" onclick="showTab('settings')" id="tab-settings-btn" style="display:none">Ajustes</button>
   </div>
 </div>
@@ -261,6 +292,39 @@
       Los cruces se calculan automáticamente al completarse los grupos.
     </div>
     <div id="knockout-container"></div>
+  </section>
+
+
+  <!-- COMPARE -->
+  <section id="tab-compare" style="display:none">
+    <div class="session-bar">
+      <div class="session-name">
+        <span id="compare-session-label">—</span>
+        <span class="role-badge" id="compare-role-badge"></span>
+      </div>
+      <button class="btn btn-sm" onclick="logout()">Cambiar usuario</button>
+    </div>
+    <div class="compare-controls">
+      <div class="view-toggle">
+        <button class="view-btn active" id="btn-view-match" onclick="setCompareView('match')">Por partido</button>
+        <button class="view-btn" id="btn-view-player" onclick="setCompareView('player')">Por jugador</button>
+      </div>
+      <select id="compare-group-filter" onchange="renderCompare()">
+        <option value="all">Todos los grupos</option>
+        <option value="A">Grupo A</option><option value="B">Grupo B</option>
+        <option value="C">Grupo C</option><option value="D">Grupo D</option>
+        <option value="E">Grupo E</option><option value="F">Grupo F</option>
+        <option value="G">Grupo G</option><option value="H">Grupo H</option>
+        <option value="I">Grupo I</option><option value="J">Grupo J</option>
+        <option value="K">Grupo K</option><option value="L">Grupo L</option>
+      </select>
+      <select id="compare-player-filter" onchange="renderCompare()" style="display:none">
+      </select>
+    </div>
+    <div class="info-box">
+      Los pronósticos de los demás solo se revelan una vez disputado el partido.
+    </div>
+    <div id="compare-container"></div>
   </section>
 
   <!-- RANKING -->
@@ -727,6 +791,7 @@ function renderAll() {
   renderMatches();
   renderKnockout();
   renderRanking();
+  renderCompare();
   if (session.isAdmin) renderSettingsPlayers();
 }
 
@@ -995,18 +1060,184 @@ function saveAdminPin() {
   alert('✅ PIN del árbitro actualizado.');
 }
 
+
+// ══════════════════════════════════════════
+// COMPARE / PREDICCIONES
+// ══════════════════════════════════════════
+let compareView = 'match'; // 'match' | 'player'
+let comparePlayerIdx = 0;
+
+function setCompareView(view) {
+  compareView = view;
+  document.getElementById('btn-view-match').classList.toggle('active', view === 'match');
+  document.getElementById('btn-view-player').classList.toggle('active', view === 'player');
+  document.getElementById('compare-group-filter').style.display = view === 'match' ? '' : '';
+  document.getElementById('compare-player-filter').style.display = view === 'player' ? '' : 'none';
+  renderCompare();
+}
+
+function renderCompare() {
+  if (!session) return;
+  // update session bar
+  const name = session.isAdmin ? '🔑 Árbitro' : remoteData.players[session.playerIdx];
+  const badge = session.isAdmin
+    ? '<span class="role-badge role-admin">Árbitro</span>'
+    : '<span class="role-badge role-player">Jugador</span>';
+  const nl = document.getElementById('compare-session-label');
+  const nb = document.getElementById('compare-role-badge');
+  if (nl) nl.textContent = name;
+  if (nb) nb.innerHTML = badge;
+
+  // update player filter options
+  const pf = document.getElementById('compare-player-filter');
+  if (pf) {
+    const cur = pf.value;
+    pf.innerHTML = remoteData.players.map((p,i) => `<option value="${i}" ${parseInt(cur)===i?'selected':''}>${p}</option>`).join('');
+  }
+
+  if (compareView === 'match') renderCompareByMatch();
+  else renderCompareByPlayer();
+}
+
+function renderCompareByMatch() {
+  const filter = document.getElementById('compare-group-filter')?.value || 'all';
+  const groups = filter === 'all' ? Object.keys(GROUPS) : [filter];
+  const container = document.getElementById('compare-container');
+  const players = remoteData.players;
+
+  container.innerHTML = groups.map(g => {
+    const grp = GROUPS[g];
+    // only show matches that have a real score
+    const playedMatches = grp.matches.filter(m => {
+      const r = remoteData.realScores[m.id];
+      return r && r.h != null && r.h !== '';
+    });
+
+    if (playedMatches.length === 0) return `
+      <div class="group-card" style="margin-bottom:1.25rem">
+        <div class="group-head">
+          <span class="group-letter">Grupo ${g}</span>
+          <span class="group-teams-list">${grp.teams.join(' · ')}</span>
+        </div>
+        <div style="padding:16px;font-size:13px;color:var(--text3);text-align:center">Sin partidos disputados aún</div>
+      </div>`;
+
+    const headerCols = players.map(p => `<th>${p}</th>`).join('');
+    const rows = playedMatches.map(m => {
+      const real = remoteData.realScores[m.id];
+      const realStr = `${real.h}–${real.a}`;
+      const pickCols = players.map((p, i) => {
+        const pick = (remoteData.picks[i] || {})[m.id];
+        const pts = calcPts(i, m.id, false);
+        if (!pick || pick.h == null || pick.h === '') {
+          return `<td><span style="color:var(--text3);font-size:12px">—</span></td>`;
+        }
+        const cls = pts === 3 ? 'pts-3' : pts === 1 ? 'pts-1' : pts === 0 ? 'pts-0' : 'pts-n';
+        return `<td>
+          <div class="pick-cell">
+            <span class="pick-score">${pick.h}–${pick.a}</span>
+            <span class="pts ${cls}" style="font-size:11px;padding:1px 5px">${pts!=null?'+'+pts:'—'}</span>
+          </div>
+        </td>`;
+      }).join('');
+
+      return `<tr>
+        <td class="match-info">
+          <div class="match-name">${m.h} vs ${m.a}</div>
+          <div class="match-date-sm">${m.date}</div>
+        </td>
+        <td><span class="real-score-cell">${realStr}</span></td>
+        ${pickCols}
+      </tr>`;
+    }).join('');
+
+    return `<div style="margin-bottom:1.5rem">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span class="group-letter">Grupo ${g}</span>
+        <span style="font-size:13px;color:var(--text2)">${grp.teams.join(' · ')}</span>
+      </div>
+      <div class="compare-table-wrap">
+        <table class="compare-table">
+          <thead><tr>
+            <th class="match-col">Partido</th>
+            <th>Resultado</th>
+            ${headerCols}
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderCompareByPlayer() {
+  const pf = document.getElementById('compare-player-filter');
+  const pidx = pf ? parseInt(pf.value) || 0 : 0;
+  const container = document.getElementById('compare-container');
+  const filter = document.getElementById('compare-group-filter')?.value || 'all';
+  const groups = filter === 'all' ? Object.keys(GROUPS) : [filter];
+
+  const { total, played } = totalPts(pidx);
+
+  container.innerHTML = `
+    <div class="player-card">
+      <div class="player-card-head">
+        <span class="player-card-name">${remoteData.players[pidx]}</span>
+        <span class="player-card-pts">${total} pts · ${played} partidos evaluados</span>
+      </div>
+      ${groups.map(g => {
+        const grp = GROUPS[g];
+        const rows = grp.matches.map(m => {
+          const real = remoteData.realScores[m.id];
+          const isPlayed = real && real.h != null && real.h !== '';
+          const pick = (remoteData.picks[pidx] || {})[m.id];
+          const pts = calcPts(pidx, m.id, false);
+
+          if (!isPlayed) {
+            return `<div class="player-picks-row">
+              <span class="group-section-label">${g}</span>
+              <div class="match-teams" style="flex:1">
+                <span class="team">${m.h}</span><span class="vs" style="margin:0 6px">vs</span><span class="team">${m.a}</span>
+              </div>
+              <span class="match-date-sm">${m.date}</span>
+              <span class="hidden-label">🔒 Pendiente</span>
+            </div>`;
+          }
+
+          const pickStr = pick && pick.h != null && pick.h !== '' ? `${pick.h}–${pick.a}` : '—';
+          const ptsCls = pts === 3 ? 'pts-3' : pts === 1 ? 'pts-1' : pts === 0 ? 'pts-0' : 'pts-n';
+          const realStr = `${real.h}–${real.a}`;
+
+          return `<div class="player-picks-row">
+            <span class="group-section-label">${g}</span>
+            <div class="match-teams" style="flex:1">
+              <span class="team">${m.h}</span><span class="vs" style="margin:0 6px">vs</span><span class="team">${m.a}</span>
+            </div>
+            <span class="match-date-sm">${m.date}</span>
+            <span style="font-size:12px;color:var(--text2)">Pred: <strong>${pickStr}</strong></span>
+            <span style="font-size:12px;color:var(--text2)">Real: <strong>${realStr}</strong></span>
+            <span class="pts ${ptsCls}" style="font-size:11px;padding:2px 6px">${pts!=null?'+'+pts:'—'}</span>
+          </div>`;
+        }).join('');
+
+        return rows;
+      }).join('')}
+    </div>`;
+}
+
 // ══════════════════════════════════════════
 // TABS
 // ══════════════════════════════════════════
 function showTab(name) {
-  ['picks','knockout','ranking','settings'].forEach(t => {
+  ['picks','knockout','compare','ranking','settings'].forEach(t => {
     document.getElementById('tab-'+t).style.display = t===name?'':'none';
   });
   document.querySelectorAll('.tab').forEach((btn,i) => {
-    btn.classList.toggle('active', ['picks','knockout','ranking','settings'][i]===name);
+    btn.classList.toggle('active', ['picks','knockout','ranking','compare','settings'][i]===name);
   });
   if (name==='knockout') renderKnockout();
   if (name==='ranking') renderRanking();
+  if (name==='compare') renderCompare();
   if (name==='settings') renderSettingsPlayers();
 }
 
