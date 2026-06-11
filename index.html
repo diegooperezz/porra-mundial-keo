@@ -155,6 +155,43 @@
     .lock-option-desc { font-size: 12px; color: var(--text2); margin-top: 2px; line-height: 1.4; }
 
 
+
+    /* GROUP PRED TAB */
+    .grouppred-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+    .grouppred-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .grouppred-head { padding: 10px 14px; background: var(--surface2); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+    .grouppred-body { padding: 10px 14px; }
+    .drag-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+    .drag-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface2); cursor: grab; user-select: none; font-size: 14px; font-weight: 500; }
+    .drag-item.dragging { opacity: 0.4; }
+    .drag-item.drag-over { border-color: var(--green); background: var(--green-bg); }
+    .drag-item:active { cursor: grabbing; }
+    .drag-item.locked-item { cursor: default; opacity: 0.7; }
+    .pos-num { font-size: 12px; color: var(--text3); width: 16px; flex-shrink: 0; }
+    .pos-correct { color: var(--green-text); font-weight: 700; }
+    .pos-wrong { color: var(--red-text); }
+    .real-order { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .real-order-label { font-size: 11px; color: var(--text3); margin-bottom: 6px; }
+    .real-team-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; }
+    .grouppred-pts { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+
+
+    /* STANDINGS PREDICTION */
+    .standings-info { padding: 11px 14px; background: var(--amber-bg); border-radius: var(--radius-sm); font-size: 13px; color: var(--amber-text); margin-bottom: 1.25rem; line-height: 1.5; }
+    .standings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.25rem; }
+    .standings-group-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .standings-group-head { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--surface2); border-bottom: 1px solid var(--border); }
+    .standings-rows { padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; }
+    .standings-pick-row { display: flex; align-items: center; gap: 8px; }
+    .standings-pos { font-size: 13px; font-weight: 700; color: var(--text3); width: 18px; flex-shrink: 0; }
+    .standings-select { flex: 1; padding: 7px 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font-size: 13px; background: var(--surface); color: var(--text); cursor: pointer; }
+    .standings-select:focus { outline: none; border-color: var(--green); }
+    .standings-select:disabled { background: var(--surface2); cursor: not-allowed; opacity: 0.55; }
+    .standings-pts-badge { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; min-width: 36px; text-align: center; flex-shrink: 0; }
+    .standings-real-row { display: flex; align-items: center; gap: 6px; padding: 8px 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text2); }
+    .standings-real-team { font-weight: 600; font-size: 13px; color: var(--text); }
+    .standings-pos-real { font-size: 12px; color: var(--text3); width: 18px; }
+
     /* COMPARE TAB */
     .compare-controls { display: flex; gap: 8px; margin-bottom: 1.25rem; flex-wrap: wrap; align-items: center; }
     .view-toggle { display: flex; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; }
@@ -238,6 +275,8 @@
     <button class="tab active" onclick="showTab('picks')">Fase de grupos</button>
     <button class="tab" onclick="showTab('knockout')">Eliminatorias</button>
     <button class="tab" onclick="showTab('ranking')">Clasificación</button>
+    <button class="tab" onclick="showTab('grouppred')">Clasificación grupos</button>
+    <button class="tab" onclick="showTab('standings')">Clasificación grupos</button>
     <button class="tab" onclick="showTab('compare')">Predicciones</button>
     <button class="tab" onclick="showTab('settings')" id="tab-settings-btn" style="display:none">Ajustes</button>
   </div>
@@ -295,6 +334,46 @@
   </section>
 
 
+  <!-- GROUP PRED -->
+  <section id="tab-grouppred" style="display:none">
+    <div class="session-bar">
+      <div class="session-name">
+        <span id="grouppred-session-label">—</span>
+        <span class="role-badge" id="grouppred-role-badge"></span>
+      </div>
+      <button class="btn btn-sm" onclick="logout()">Cambiar usuario</button>
+    </div>
+    <div id="grouppred-lock-banner" class="lock-banner" style="display:none">
+      <span class="lock-icon">🔒</span>
+      <span>El plazo para predecir clasificaciones de grupo ha terminado (21:00 del 12 jun).</span>
+    </div>
+    <div class="info-box">
+      <strong>Predice el orden final de cada grupo.</strong> Arrastra los equipos para ordenarlos.<br>
+      <strong>Puntos:</strong> 3 pts por cada posición acertada · Si aciertas las 4 posiciones: 10 pts (bonus de 2 extra)
+    </div>
+    <div class="grouppred-grid" id="grouppred-grid"></div>
+  </section>
+
+
+  <!-- STANDINGS PREDICTION -->
+  <section id="tab-standings" style="display:none">
+    <div class="session-bar">
+      <div class="session-name">
+        <span id="standings-session-label">—</span>
+        <span class="role-badge" id="standings-role-badge"></span>
+      </div>
+      <button class="btn btn-sm" onclick="logout()">Cambiar usuario</button>
+    </div>
+    <div id="standings-lock-banner" class="lock-banner" style="display:none">
+      <span class="lock-icon">🔒</span>
+      <span>Las predicciones de clasificación están cerradas.</span>
+    </div>
+    <div class="standings-info">
+      ⏰ <strong>Plazo:</strong> Puedes editar hasta mañana 12 jun a las 21:00 · <strong>Puntos:</strong> 3 pts por cada posición acertada · Si aciertas las 4 posiciones del grupo: 10 pts (bonus de 2 pts extra)
+    </div>
+    <div class="standings-grid" id="standings-grid"></div>
+  </section>
+
   <!-- COMPARE -->
   <section id="tab-compare" style="display:none">
     <div class="session-bar">
@@ -308,6 +387,7 @@
       <div class="view-toggle">
         <button class="view-btn active" id="btn-view-match" onclick="setCompareView('match')">Por partido</button>
         <button class="view-btn" id="btn-view-player" onclick="setCompareView('player')">Por jugador</button>
+        <button class="view-btn" id="btn-view-standings" onclick="setCompareView('standings')">Clasificación grupos</button>
       </div>
       <select id="compare-group-filter" onchange="renderCompare()">
         <option value="all">Todos los grupos</option>
@@ -449,10 +529,10 @@ const GROUPS = {
   H:{teams:['España','Cabo Verde','Arabia Saudí','Uruguay'],matches:[
     {id:'H1',date:'15 jun',h:'España',a:'Cabo Verde'},
     {id:'H2',date:'15 jun',h:'Arabia Saudí',a:'Uruguay'},
-    {id:'H3',date:'21 jun',h:'Cabo Verde',a:'Uruguay'},
-    {id:'H4',date:'21 jun',h:'España',a:'Arabia Saudí'},
-    {id:'H5',date:'27 jun',h:'Cabo Verde',a:'España'},
-    {id:'H6',date:'27 jun',h:'Uruguay',a:'Arabia Saudí'},
+    {id:'H3',date:'21 jun',h:'España',a:'Uruguay'},
+    {id:'H4',date:'21 jun',h:'Cabo Verde',a:'Arabia Saudí'},
+    {id:'H5',date:'26 jun',h:'España',a:'Arabia Saudí'},
+    {id:'H6',date:'26 jun',h:'Uruguay',a:'Cabo Verde'},
   ]},
   I:{teams:['Francia','Senegal','Irak','Noruega'],matches:[
     {id:'I1',date:'17 jun',h:'Francia',a:'Senegal'},
@@ -605,6 +685,7 @@ function initFirebase() {
         koPicks: d.koPicks || {},
         realScores: d.realScores || {},
         koRealScores: d.koRealScores || {},
+        groupPreds: d.groupPreds || {},
       };
       renderLoginButtons();
       if (!session) document.getElementById('login-overlay').style.display = 'flex';
@@ -693,6 +774,16 @@ function winner(h, a) {
   return hi > ai ? 'h' : ai > hi ? 'a' : 'd';
 }
 
+// KO match tier by id prefix
+function koTier(mid) {
+  if (['R01','R02','R03','R04','R05','R06','R07','R08','R09','R10','R11','R12','R13','R14','R15','R16'].includes(mid)) return 'r32';
+  if (['QF01','QF02','QF03','QF04','QF05','QF06','QF07','QF08'].includes(mid)) return 'r16';
+  if (['SF01','SF02','SF03','SF04'].includes(mid)) return 'qf';
+  if (['FIN01','FIN02'].includes(mid)) return 'sf';
+  if (mid === 'FINAL') return 'final';
+  return 'r32';
+}
+
 function calcPts(pidx, mid, isKo) {
   const scores = isKo ? remoteData.koRealScores : remoteData.realScores;
   const allPicks = isKo ? remoteData.koPicks : remoteData.picks;
@@ -702,9 +793,48 @@ function calcPts(pidx, mid, isKo) {
   if (!p || p.h === '' || p.h == null) return null;
   const rh = parseInt(r.h), ra = parseInt(r.a), ph = parseInt(p.h), pa = parseInt(p.a);
   if (isNaN(rh)||isNaN(ra)||isNaN(ph)||isNaN(pa)) return null;
-  if (rh === ph && ra === pa) return 3;
-  if (winner(rh, ra) === winner(ph, pa)) return 1;
+
+  if (!isKo) {
+    // Groups: 3 exact, 1 sign
+    if (rh === ph && ra === pa) return 3;
+    if (winner(rh, ra) === winner(ph, pa)) return 1;
+    return 0;
+  }
+
+  // Knockout: tiered scoring
+  const tier = koTier(mid);
+  let exactPts, signPts;
+  if (tier === 'r32' || tier === 'r16') { exactPts = 5; signPts = 3; }
+  else if (tier === 'qf' || tier === 'sf') { exactPts = 10; signPts = 5; }
+  else { exactPts = 25; signPts = 10; } // final
+
+  if (rh === ph && ra === pa) return exactPts;
+  if (winner(rh, ra) === winner(ph, pa)) return signPts;
   return 0;
+}
+
+// Group standings prediction scoring: 3pts per position correct, 10 if all 4 correct
+function calcGroupPredPts(pidx, g) {
+  const pred = (remoteData.groupPreds || {})[pidx]?.[g];
+  if (!pred || !pred.length) return null;
+  const { sorted, complete } = groupStandings(g);
+  if (!complete) return null;
+  const real = sorted.map(t => t.team);
+  let correct = 0;
+  for (let i = 0; i < 4; i++) {
+    if (pred[i] && pred[i] === real[i]) correct++;
+  }
+  if (correct === 4) return 10;
+  return correct * 3;
+}
+
+function totalGroupPredPts(pidx) {
+  let total = 0, evaluated = 0;
+  Object.keys(GROUPS).forEach(g => {
+    const pts = calcGroupPredPts(pidx, g);
+    if (pts !== null) { total += pts; evaluated++; }
+  });
+  return { total, evaluated };
 }
 
 function totalPts(pidx) {
@@ -717,6 +847,10 @@ function totalPts(pidx) {
     const pts = calcPts(pidx, m.id, true);
     if (pts !== null) { total += pts; played++; }
   }));
+  // Add group prediction points
+  const gp = totalGroupPredPts(pidx);
+  total += gp.total;
+  played += gp.evaluated;
   return { total, played };
 }
 
@@ -791,6 +925,7 @@ function renderAll() {
   renderMatches();
   renderKnockout();
   renderRanking();
+  renderStandings();
   renderCompare();
   if (session.isAdmin) renderSettingsPlayers();
 }
@@ -1061,6 +1196,265 @@ function saveAdminPin() {
 }
 
 
+
+// ══════════════════════════════════════════
+// CLASIFICACIÓN GRUPOS — PREDICCIÓN
+// ══════════════════════════════════════════
+// Deadline: 12 jun 2026 21:00 hora Madrid
+const GROUP_PRED_DEADLINE = new Date('2026-06-12T21:00:00+02:00');
+
+function isGroupPredOpen() {
+  return new Date() < GROUP_PRED_DEADLINE;
+}
+
+function renderGroupPred() {
+  if (!session) return;
+  const pidx = session.playerIdx;
+  const isAdmin = session.isAdmin;
+  const open = isGroupPredOpen();
+
+  // session bar
+  const name = isAdmin ? '🔑 Árbitro' : remoteData.players[pidx];
+  const badge = isAdmin ? '<span class="role-badge role-admin">Árbitro</span>' : '<span class="role-badge role-player">Jugador</span>';
+  const nl = document.getElementById('grouppred-session-label');
+  const nb = document.getElementById('grouppred-role-badge');
+  if (nl) nl.textContent = name;
+  if (nb) nb.innerHTML = badge;
+
+  const lockBanner = document.getElementById('grouppred-lock-banner');
+  if (lockBanner) lockBanner.style.display = (!isAdmin && !open) ? 'flex' : 'none';
+
+  const grid = document.getElementById('grouppred-grid');
+  if (!grid) return;
+
+  grid.innerHTML = Object.keys(GROUPS).map(g => {
+    const grp = GROUPS[g];
+    const pred = (remoteData.groupPreds || {})[pidx]?.[g] || [...grp.teams];
+    const { sorted, complete } = groupStandings(g);
+    const pts = calcGroupPredPts(pidx, g);
+    const canEdit = !isAdmin && open;
+
+    // real order display (only if group complete)
+    const realOrderHtml = complete ? `
+      <div class="real-order">
+        <div class="real-order-label">Clasificación real:</div>
+        ${sorted.map((t, i) => {
+          const predPos = pred.indexOf(t.team);
+          const correct = predPos === i;
+          return `<div class="real-team-row">
+            <span class="pos-num ${correct ? 'pos-correct' : 'pos-wrong'}">${i+1}º</span>
+            <span>${t.team}</span>
+            ${correct ? '<span style="font-size:11px;color:var(--green-text)">✓</span>' : ''}
+          </div>`;
+        }).join('')}
+      </div>` : '';
+
+    const ptsBadge = pts !== null
+      ? `<span class="grouppred-pts ${pts >= 10 ? 'pts-3' : pts > 0 ? 'pts-1' : 'pts-0'}">${pts} pts</span>`
+      : '';
+
+    const items = pred.map((team, i) => {
+      const realPos = complete ? sorted.findIndex(t => t.team === team) : -1;
+      const correct = complete && realPos === i;
+      const wrong = complete && realPos !== i;
+      return `<li class="drag-item ${canEdit ? '' : 'locked-item'}"
+        draggable="${canEdit}"
+        data-team="${team}"
+        data-group="${g}"
+        ${canEdit ? `ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropItem(event,'${g}',${pidx})" ondragend="dragEnd(event)"` : ''}>
+        <span class="pos-num ${correct ? 'pos-correct' : wrong ? 'pos-wrong' : ''}">${i+1}º</span>
+        <span>${team}</span>
+        ${correct ? '<span style="margin-left:auto;font-size:11px;color:var(--green-text)">✓</span>' : ''}
+        ${wrong && complete ? `<span style="margin-left:auto;font-size:11px;color:var(--text3)">${realPos+1}º real</span>` : ''}
+        ${canEdit ? '<span style="margin-left:auto;color:var(--text3);font-size:16px">⠿</span>' : ''}
+      </li>`;
+    }).join('');
+
+    return `<div class="grouppred-card">
+      <div class="grouppred-head">
+        <span class="group-letter">Grupo ${g}</span>
+        <span class="group-teams-list" style="flex:1">${grp.teams.join(' · ')}</span>
+        ${ptsBadge}
+      </div>
+      <div class="grouppred-body">
+        <ul class="drag-list" id="draglist-${g}-${pidx}">${items}</ul>
+        ${realOrderHtml}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Drag & drop
+let dragSrc = null;
+
+function dragStart(e) {
+  dragSrc = e.currentTarget;
+  e.dataTransfer.effectAllowed = 'move';
+  setTimeout(() => { if(dragSrc) dragSrc.classList.add('dragging'); }, 0);
+}
+
+function dragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.drag-item').forEach(el => el.classList.remove('drag-over'));
+  e.currentTarget.classList.add('drag-over');
+}
+
+function dragEnd(e) {
+  document.querySelectorAll('.drag-item').forEach(el => {
+    el.classList.remove('dragging');
+    el.classList.remove('drag-over');
+  });
+  dragSrc = null;
+}
+
+function dropItem(e, g, pidx) {
+  e.preventDefault();
+  if (!dragSrc || dragSrc === e.currentTarget) return;
+  const list = document.getElementById(`draglist-${g}-${pidx}`);
+  const items = [...list.querySelectorAll('.drag-item')];
+  const srcIdx = items.indexOf(dragSrc);
+  const tgtIdx = items.indexOf(e.currentTarget);
+  if (srcIdx === -1 || tgtIdx === -1) return;
+
+  // reorder teams
+  const teams = items.map(el => el.dataset.team);
+  const [moved] = teams.splice(srcIdx, 1);
+  teams.splice(tgtIdx, 0, moved);
+
+  // save
+  if (!remoteData.groupPreds) remoteData.groupPreds = {};
+  if (!remoteData.groupPreds[pidx]) remoteData.groupPreds[pidx] = {};
+  remoteData.groupPreds[pidx][g] = teams;
+  fbSet(`groupPreds/${pidx}/${g}`, teams);
+
+  // re-render just this tab
+  renderGroupPred();
+}
+
+
+// ══════════════════════════════════════════
+// STANDINGS PREDICTION (clasificación grupos)
+// ══════════════════════════════════════════
+
+// Deadline: 12 jun 2026 21:00 Madrid time
+const STANDINGS_DEADLINE = new Date('2026-06-12T21:00:00+02:00');
+
+function isStandingsOpen() {
+  if (session && session.isAdmin) return true;
+  const mode = remoteData.lockMode || 'auto';
+  if (mode === 'closed') return false;
+  return new Date() < STANDINGS_DEADLINE;
+}
+
+function standingsPts(pidx, grp) {
+  // Get real final standings for this group
+  const { sorted, complete } = groupStandings(grp);
+  if (!complete) return null;
+  const realOrder = sorted.map(s => s.team);
+  // Get player's prediction
+  const pred = ((remoteData.standingsPicks || {})[pidx] || {})[grp] || [];
+  if (!pred.length || pred.some(t => !t)) return null;
+  let correct = 0;
+  pred.forEach((team, i) => { if (team === realOrder[i]) correct++; });
+  if (correct === 4) return 10;
+  return correct * 3;
+}
+
+function totalStandingsPts(pidx) {
+  let total = 0;
+  Object.keys(GROUPS).forEach(g => {
+    const pts = standingsPts(pidx, g);
+    if (pts !== null) total += pts;
+  });
+  return total;
+}
+
+function renderStandings() {
+  if (!session) return;
+  const pidx = session.playerIdx;
+  const isAdmin = session.isAdmin;
+  const open = isStandingsOpen();
+
+  // session bar
+  const name = isAdmin ? '🔑 Árbitro' : remoteData.players[pidx];
+  const badge = isAdmin
+    ? '<span class="role-badge role-admin">Árbitro</span>'
+    : '<span class="role-badge role-player">Jugador</span>';
+  const sl = document.getElementById('standings-session-label');
+  const sb = document.getElementById('standings-role-badge');
+  if (sl) sl.textContent = name;
+  if (sb) sb.innerHTML = badge;
+
+  const banner = document.getElementById('standings-lock-banner');
+  if (banner) banner.style.display = (!isAdmin && !open) ? 'flex' : 'none';
+
+  const grid = document.getElementById('standings-grid');
+  if (!grid) return;
+
+  const allPicks = remoteData.standingsPicks || {};
+  const myPicks = (allPicks[pidx] || {});
+
+  grid.innerHTML = Object.keys(GROUPS).map(g => {
+    const teams = GROUPS[g].teams;
+    const pred = myPicks[g] || ['', '', '', ''];
+    const { sorted, complete } = groupStandings(g);
+    const realOrder = complete ? sorted.map(s => s.team) : null;
+    const pts = isAdmin ? null : standingsPts(pidx, g);
+
+    const ptsLabel = pts === null ? ''
+      : `<span class="standings-pts-badge ${pts===10?'pts-3':pts>0?'pts-1':'pts-0'}">${pts} pts</span>`;
+
+    const positions = [1,2,3,4].map(pos => {
+      const i = pos - 1;
+      const chosen = pred[i] || '';
+      // options: all teams, excluding already chosen in other positions
+      const otherChosen = pred.filter((t,j) => j !== i && t);
+      const options = teams.map(t => {
+        const disabled = otherChosen.includes(t) ? 'disabled' : '';
+        const selected = chosen === t ? 'selected' : '';
+        return `<option value="${t}" ${selected} ${disabled}>${t}</option>`;
+      });
+
+      const dis = (!isAdmin && !open) || complete ? 'disabled' : '';
+      return `<div class="standings-pick-row">
+        <span class="standings-pos">${pos}º</span>
+        <select class="standings-select" ${dis}
+          onchange="setStandingsPick(${pidx},'${g}',${i},this.value)">
+          <option value="">— Elige —</option>
+          ${options.join('')}
+        </select>
+      </div>`;
+    }).join('');
+
+    const realBlock = realOrder ? `
+      <div class="standings-real-row">
+        <span style="margin-right:4px;font-weight:500">Resultado final:</span>
+        ${realOrder.map((t,i) => `<span class="standings-pos-real">${i+1}º</span><span class="standings-real-team">${t}</span>`).join('<span style="color:var(--border-strong);margin:0 4px">·</span>')}
+      </div>` : '';
+
+    return `<div class="standings-group-card">
+      <div class="standings-group-head">
+        <span class="group-letter">Grupo ${g}</span>
+        <span class="group-teams-list">${teams.join(' · ')}</span>
+        ${ptsLabel}
+      </div>
+      <div class="standings-rows">${positions}</div>
+      ${realBlock}
+    </div>`;
+  }).join('');
+}
+
+function setStandingsPick(pidx, grp, pos, team) {
+  if (!remoteData.standingsPicks) remoteData.standingsPicks = {};
+  if (!remoteData.standingsPicks[pidx]) remoteData.standingsPicks[pidx] = {};
+  if (!remoteData.standingsPicks[pidx][grp]) remoteData.standingsPicks[pidx][grp] = ['','','',''];
+  remoteData.standingsPicks[pidx][grp][pos] = team;
+  fbSet(`standingsPicks/${pidx}/${grp}`, remoteData.standingsPicks[pidx][grp]);
+  // re-render to update disabled options
+  renderStandings();
+}
+
 // ══════════════════════════════════════════
 // COMPARE / PREDICCIONES
 // ══════════════════════════════════════════
@@ -1071,7 +1465,8 @@ function setCompareView(view) {
   compareView = view;
   document.getElementById('btn-view-match').classList.toggle('active', view === 'match');
   document.getElementById('btn-view-player').classList.toggle('active', view === 'player');
-  document.getElementById('compare-group-filter').style.display = view === 'match' ? '' : '';
+  document.getElementById('btn-view-standings').classList.toggle('active', view === 'standings');
+  document.getElementById('compare-group-filter').style.display = view === 'standings' ? 'none' : '';
   document.getElementById('compare-player-filter').style.display = view === 'player' ? '' : 'none';
   renderCompare();
 }
@@ -1096,7 +1491,8 @@ function renderCompare() {
   }
 
   if (compareView === 'match') renderCompareByMatch();
-  else renderCompareByPlayer();
+  else if (compareView === 'player') renderCompareByPlayer();
+  else renderCompareByStandings();
 }
 
 function renderCompareByMatch() {
@@ -1225,18 +1621,87 @@ function renderCompareByPlayer() {
     </div>`;
 }
 
+
+function renderCompareByStandings() {
+  const container = document.getElementById('compare-container');
+  const players = remoteData.players;
+
+  container.innerHTML = Object.keys(GROUPS).map(g => {
+    const teams = GROUPS[g].teams;
+    const { sorted, complete } = groupStandings(g);
+    const realOrder = complete ? sorted.map(s => s.team) : null;
+
+    // Header row with player names
+    const headerCols = players.map(p => `<th style="text-align:center;min-width:90px">${p}</th>`).join('');
+
+    // For each position (1-4), show what each player predicted
+    const rows = [0,1,2,3].map(pos => {
+      const posLabel = `${pos+1}º`;
+      const cols = players.map((p, pidx) => {
+        const pred = ((remoteData.standingsPicks || {})[pidx] || {})[g] || [];
+        const team = pred[pos] || null;
+        const isCorrect = realOrder && team && realOrder[pos] === team;
+        const isWrong = realOrder && team && realOrder[pos] !== team;
+        const cls = isCorrect ? 'pts-3' : isWrong ? 'pts-0' : 'pts-n';
+        return `<td>
+          <span class="pts ${cls}" style="font-size:12px;padding:2px 7px;white-space:nowrap">
+            ${team || '—'}
+          </span>
+        </td>`;
+      }).join('');
+
+      const realTeam = realOrder ? `<td style="font-weight:700;font-size:13px;color:var(--green-text);background:var(--green-bg)">${realOrder[pos]}</td>` : `<td style="color:var(--text3);font-size:12px">Pendiente</td>`;
+
+      return `<tr>
+        <td style="font-weight:700;color:var(--text2);font-size:13px;padding:8px 10px">${posLabel}</td>
+        ${realTeam}
+        ${cols}
+      </tr>`;
+    }).join('');
+
+    // Points row
+    const ptsRow = `<tr style="border-top:2px solid var(--border)">
+      <td colspan="2" style="font-size:12px;font-weight:600;color:var(--text2);padding:8px 10px">Pts grupo</td>
+      ${players.map((_,pidx) => {
+        const pts = standingsPts(pidx, g);
+        const cls = pts === null ? 'pts-n' : pts === 10 ? 'pts-3' : pts > 0 ? 'pts-1' : 'pts-0';
+        return `<td><span class="pts ${cls}" style="font-size:12px">${pts !== null ? pts : '—'}</span></td>`;
+      }).join('')}
+    </tr>`;
+
+    return `<div style="margin-bottom:1.5rem">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span class="group-letter">Grupo ${g}</span>
+        <span style="font-size:13px;color:var(--text2)">${teams.join(' · ')}</span>
+        ${!realOrder ? '<span style="font-size:12px;color:var(--text3)">Grupo en curso</span>' : ''}
+      </div>
+      <div class="compare-table-wrap">
+        <table class="compare-table">
+          <thead><tr>
+            <th class="match-col" style="min-width:40px">Pos</th>
+            <th style="background:var(--green-bg);color:var(--green-text)">Real</th>
+            ${headerCols}
+          </tr></thead>
+          <tbody>${rows}${ptsRow}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 // ══════════════════════════════════════════
 // TABS
 // ══════════════════════════════════════════
 function showTab(name) {
-  ['picks','knockout','compare','ranking','settings'].forEach(t => {
+  ['picks','knockout','standings','compare','ranking','settings'].forEach(t => {
     document.getElementById('tab-'+t).style.display = t===name?'':'none';
   });
   document.querySelectorAll('.tab').forEach((btn,i) => {
-    btn.classList.toggle('active', ['picks','knockout','ranking','compare','settings'][i]===name);
+    btn.classList.toggle('active', ['picks','knockout','standings','ranking','compare','settings'][i]===name);
   });
   if (name==='knockout') renderKnockout();
   if (name==='ranking') renderRanking();
+  if (name==='standings') renderStandings();
   if (name==='compare') renderCompare();
   if (name==='settings') renderSettingsPlayers();
 }
