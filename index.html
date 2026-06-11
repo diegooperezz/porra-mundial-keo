@@ -1354,11 +1354,13 @@ function setStandingsPick(pidx, grp, pos, team) {
     badge.className = `standings-pts-badge ${pts===10?'pts-3':pts>0?'pts-1':pts===0?'pts-0':'pts-n'}`;
     badge.style.display = pts !== null ? '' : 'none';
   }
-  // Write to Firebase (debounced to avoid re-render loop)
+  // Block Firebase re-renders while editing, write with debounce
+  window._standingsEditing = true;
   clearTimeout(window._standingsTimer);
   window._standingsTimer = setTimeout(() => {
     fbSet(`standingsPicks/${pidx}/${grp}`, remoteData.standingsPicks[pidx][grp]);
-  }, 600);
+    setTimeout(() => { window._standingsEditing = false; }, 1500);
+  }, 400);
 }
 
 // ══════════════════════════════════════════
