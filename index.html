@@ -325,9 +325,15 @@
       <span>Las predicciones de clasificación están cerradas.</span>
     </div>
     <div class="standings-info">
-      ⏰ <strong>Plazo:</strong> Puedes editar hasta mañana 12 jun a las 21:00 · <strong>Puntos:</strong> 3 pts por cada posición acertada · Si aciertas las 4 posiciones del grupo: 10 pts (bonus de 2 pts extra)
+      ⏰ <strong>Plazo:</strong> Puedes editar hasta el 12 jun a las 21:00 · <strong>Puntos:</strong> 3 pts por cada posición acertada · Si aciertas las 4: 10 pts
     </div>
-    <div class="standings-grid" id="standings-grid"></div>
+    <div id="standings-grid" class="standings-grid"></div>
+    <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap" id="standings-save-row" style="display:none">
+      <button id="standings-save-btn" class="btn btn-green" onclick="saveStandingsPicks(window._standingsPidx||0)" disabled style="opacity:0.5">
+        💾 Guardar predicciones (0/12 completos)
+      </button>
+      <span style="font-size:12px;color:var(--text2)">Las predicciones no se guardan hasta pulsar este botón</span>
+    </div>
   </section>
 
   <!-- COMPARE -->
@@ -1284,6 +1290,12 @@ function renderStandings() {
   const allPicks = remoteData.standingsPicks || {};
   const myPicks = isAdmin ? (allPicks[0] || {}) : (allPicks[viewPidx] || {});
 
+  // Store pidx for save button
+  window._standingsPidx = viewPidx;
+  // Show save row only for players (not admin), and only if window is open
+  const saveRow = document.getElementById('standings-save-row');
+  if (saveRow) saveRow.style.display = (!isAdmin && open) ? '' : 'none';
+
   grid.innerHTML = Object.keys(GROUPS).map(g => {
     const teams = GROUPS[g].teams;
     const pred = myPicks[g] || ['', '', '', ''];
@@ -1330,6 +1342,8 @@ function renderStandings() {
       ${realBlock}
     </div>`;
   }).join('');
+
+  updateStandingsSaveBtn(viewPidx);
 }
 
 function setStandingsPick(pidx, grp, pos, team) {
@@ -1337,7 +1351,7 @@ function setStandingsPick(pidx, grp, pos, team) {
   if (!remoteData.standingsPicks[pidx]) remoteData.standingsPicks[pidx] = {};
   if (!remoteData.standingsPicks[pidx][grp]) remoteData.standingsPicks[pidx][grp] = ['','','',''];
   remoteData.standingsPicks[pidx][grp][pos] = team;
-  // Update disabled options in sibling selects without full re-render
+  // Update disabled options in sibling selects without re-render
   const pred = remoteData.standingsPicks[pidx][grp];
   document.querySelectorAll(`.standings-select[data-grp="${grp}"]`).forEach((sel, i) => {
     const otherChosen = pred.filter((t,j) => j !== i && t);
@@ -1346,21 +1360,45 @@ function setStandingsPick(pidx, grp, pos, team) {
       opt.disabled = otherChosen.includes(opt.value);
     });
   });
-  // Update pts badge
-  const badge = document.getElementById(`standings-pts-${grp}`);
-  if (badge) {
-    const pts = standingsPts(pidx, grp);
-    badge.textContent = pts !== null ? pts + ' pts' : '';
-    badge.className = `standings-pts-badge ${pts===10?'pts-3':pts>0?'pts-1':pts===0?'pts-0':'pts-n'}`;
-    badge.style.display = pts !== null ? '' : 'none';
+  // Update save button state
+  updateStandingsSaveBtn(pidx);
+}
+
+function updateStandingsSaveBtn(pidx) {
+  const btn = document.getElementById('standings-save-btn');
+  if (!btn) return;
+  const allPicks = remoteData.standingsPicks || {};
+  const myPicks = allPicks[pidx] || {};
+  const total = Object.keys(GROUPS).length; // 12
+  const complete = Object.keys(GROUPS).filter(g => {
+    const p = myPicks[g] || [];
+    return p.length === 4 && p.every(t => t && t !== '');
+  }).length;
+  btn.textContent = complete === total
+    ? '✅ Guardar predicciones (' + complete + '/12 completos)'
+    : '💾 Guardar predicciones (' + complete + '/12 completos)';
+  btn.disabled = complete !== total;
+  btn.style.opacity = complete !== total ? '0.5' : '1';
+}
+
+function saveStandingsPicks(pidx) {
+  const allPicks = remoteData.standingsPicks || {};
+  const myPicks = allPicks[pidx] || {};
+  const incomplete = Object.keys(GROUPS).filter(g => {
+    const p = myPicks[g] || [];
+    return p.length !== 4 || !p.every(t => t && t !== '');
+  });
+  if (incomplete.length > 0) {
+    alert('Faltan grupos por completar: ' + incomplete.map(g => 'Grupo ' + g).join(', '));
+    return;
   }
-  // Block Firebase re-renders while editing, write with debounce
-  window._standingsEditing = true;
-  clearTimeout(window._standingsTimer);
-  window._standingsTimer = setTimeout(() => {
-    fbSet(`standingsPicks/${pidx}/${grp}`, remoteData.standingsPicks[pidx][grp]);
-    setTimeout(() => { window._standingsEditing = false; }, 1500);
-  }, 400);
+  // Write all to Firebase at once
+  fbSet('standingsPicks/' + pidx, myPicks);
+  const btn = document.getElementById('standings-save-btn');
+  if (btn) {
+    btn.textContent = '✅ ¡Guardado!';
+    setTimeout(() => updateStandingsSaveBtn(pidx), 2000);
+  }
 }
 
 // ══════════════════════════════════════════
