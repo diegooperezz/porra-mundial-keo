@@ -582,6 +582,10 @@ let session = null;
 let loginTarget = null;
 let clockInterval = null;
 
+// Local draft for standings — completely isolated from Firebase listener
+let localStandingsDraft = {}; // { [pidx]: { [grp]: [t1,t2,t3,t4] } }
+let localStandingsDraftActive = false; // true once user starts editing
+
 let remoteData = {
   players: ['Jugador 1','Jugador 2','Jugador 3','Jugador 4','Jugador 5','Jugador 6','Jugador 7'],
   pins: ['1111','2222','3333','4444','5555','6666','7777'],
@@ -648,8 +652,14 @@ function initFirebase() {
         koPicks: d.koPicks || {},
         realScores: d.realScores || {},
         koRealScores: d.koRealScores || {},
-        groupPreds: d.groupPreds || {},
+        standingsPicks: d.standingsPicks || {},
+        standingsSaved: d.standingsSaved || {},
       };
+      // Restore local draft if user is actively editing standings
+      if (localStandingsDraftActive && session) {
+        const pidx = session.isAdmin ? 0 : session.playerIdx;
+        remoteData.standingsPicks[pidx] = JSON.parse(JSON.stringify(localStandingsDraft[pidx] || {}));
+      }
       renderLoginButtons();
       if (!session) document.getElementById('login-overlay').style.display = 'flex';
       renderAll();
@@ -1283,8 +1293,11 @@ function renderStandings() {
   if (!grid) return;
 
   // Use local draft if editing, otherwise use Firebase data
+  // Prefer localDraft if user is editing (protects against Firebase re-renders)
   const allPicks = remoteData.standingsPicks || {};
-  const myPicks = allPicks[pidx] || {};
+  const myPicks = (localStandingsDraftActive && localStandingsDraft[pidx])
+    ? localStandingsDraft[pidx]
+    : (allPicks[pidx] || {});
 
   window._standingsPidx = pidx;
 
@@ -1375,17 +1388,26 @@ function renderStandings() {
 }
 
 function setStandingsPick(pidx, grp, pos, team) {
-  // Write only to local remoteData — NO Firebase yet
+  // Write ONLY to localDraft — zero Firebase contact
+  localStandingsDraftActive = true;
+  if (!localStandingsDraft[pidx]) localStandingsDraft[pidx] = {};
+  if (!Array.isArray(localStandingsDraft[pidx][grp])) {
+    // Seed from remoteData if available (for existing picks)
+    const existing = ((remoteData.standingsPicks || {})[pidx] || {})[grp] || [];
+    localStandingsDraft[pidx][grp] = [0,1,2,3].map(i => {
+      const v = Array.isArray(existing) ? existing[i] : (existing[String(i)] || existing[i]);
+      return v || '';
+    });
+  }
+  localStandingsDraft[pidx][grp][pos] = team;
+
+  // Mirror to remoteData so renderStandings reads correctly
   if (!remoteData.standingsPicks) remoteData.standingsPicks = {};
   if (!remoteData.standingsPicks[pidx]) remoteData.standingsPicks[pidx] = {};
-  const raw = remoteData.standingsPicks[pidx][grp];
-  if (!raw || !Array.isArray(raw)) {
-    remoteData.standingsPicks[pidx][grp] = ['','','',''];
-  }
-  remoteData.standingsPicks[pidx][grp][pos] = team;
+  remoteData.standingsPicks[pidx][grp] = [...localStandingsDraft[pidx][grp]];
 
-  // Update only the disabled state of sibling selects — no re-render
-  const pred = remoteData.standingsPicks[pidx][grp];
+  // Update only disabled state of sibling selects — no re-render
+  const pred = localStandingsDraft[pidx][grp];
   document.querySelectorAll(`.standings-select[data-grp="${grp}"]`).forEach((sel, i) => {
     const otherChosen = pred.filter((t,j) => j !== i && t);
     Array.from(sel.options).forEach(opt => {
@@ -1416,7 +1438,10 @@ function updateStandingsSaveBtn(pidx) {
 }
 
 function saveStandingsPicks(pidx) {
-  const myPicks = (remoteData.standingsPicks || {})[pidx] || {};
+  const myPicks = localStandingsDraftActive
+    ? (localStandingsDraft[pidx] || {})
+    : ((remoteData.standingsPicks || {})[pidx] || {});
+
   const incomplete = Object.keys(GROUPS).filter(g => {
     const raw = myPicks[g] || [];
     const p = [0,1,2,3].map(i => Array.isArray(raw) ? raw[i] : (raw[String(i)] || raw[i]) || '');
@@ -1426,14 +1451,24 @@ function saveStandingsPicks(pidx) {
     alert('Faltan grupos: ' + incomplete.map(g => 'Grupo ' + g).join(', '));
     return;
   }
-  // Mark saved locally first so re-render shows static view immediately
+
+  // Commit draft to remoteData
+  if (!remoteData.standingsPicks) remoteData.standingsPicks = {};
+  remoteData.standingsPicks[pidx] = JSON.parse(JSON.stringify(myPicks));
+
+  // Mark saved locally BEFORE Firebase write (so re-render shows static immediately)
   if (!remoteData.standingsSaved) remoteData.standingsSaved = {};
   remoteData.standingsSaved[pidx] = true;
+
+  // Clear draft — from now on Firebase data is authoritative
+  localStandingsDraftActive = false;
+  delete localStandingsDraft[pidx];
+
   // Write to Firebase
   fbSet('standingsPicks/' + pidx, myPicks);
   fbSet('standingsSaved/' + pidx, true);
-  // Re-render to static view — Firebase listener won't undo this because
-  // standingsSaved[pidx] is now true both locally and in Firebase
+
+  // Re-render immediately as static
   renderStandings();
 }
 
