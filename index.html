@@ -1240,7 +1240,8 @@ function standingsPts(pidx, grp) {
   if (!complete) return null;
   const realOrder = sorted.map(s => s.team);
   // Get player's prediction
-  const pred = ((remoteData.standingsPicks || {})[pidx] || {})[grp] || [];
+  const rawPredPts = ((remoteData.standingsPicks || {})[pidx] || {})[grp] || [];
+  const pred = [0,1,2,3].map(i => (Array.isArray(rawPredPts) ? rawPredPts[i] : rawPredPts[i]) || '');
   if (!pred.length || pred.some(t => !t)) return null;
   let correct = 0;
   pred.forEach((team, i) => { if (team === realOrder[i]) correct++; });
@@ -1298,7 +1299,9 @@ function renderStandings() {
 
   grid.innerHTML = Object.keys(GROUPS).map(g => {
     const teams = GROUPS[g].teams;
-    const pred = myPicks[g] || ['', '', '', ''];
+    const rawPred = myPicks[g] || [];
+    // Firebase may return array-as-object {0:'x',1:'y'...} — normalize to real array
+    const pred = [0,1,2,3].map(i => (Array.isArray(rawPred) ? rawPred[i] : rawPred[i]) || '');
     const { sorted, complete } = groupStandings(g);
     const realOrder = complete ? sorted.map(s => s.team) : null;
     const pts = standingsPts(viewPidx, g);
@@ -1349,7 +1352,13 @@ function renderStandings() {
 function setStandingsPick(pidx, grp, pos, team) {
   if (!remoteData.standingsPicks) remoteData.standingsPicks = {};
   if (!remoteData.standingsPicks[pidx]) remoteData.standingsPicks[pidx] = {};
-  if (!remoteData.standingsPicks[pidx][grp]) remoteData.standingsPicks[pidx][grp] = ['','','',''];
+  // Normalize from Firebase object to real array if needed
+  const existing = remoteData.standingsPicks[pidx][grp];
+  if (!existing) {
+    remoteData.standingsPicks[pidx][grp] = ['','','',''];
+  } else if (!Array.isArray(existing)) {
+    remoteData.standingsPicks[pidx][grp] = [0,1,2,3].map(i => existing[i] || '');
+  }
   remoteData.standingsPicks[pidx][grp][pos] = team;
   // Update disabled options in sibling selects without re-render
   const pred = remoteData.standingsPicks[pidx][grp];
@@ -1371,8 +1380,9 @@ function updateStandingsSaveBtn(pidx) {
   const myPicks = allPicks[pidx] || {};
   const total = Object.keys(GROUPS).length; // 12
   const complete = Object.keys(GROUPS).filter(g => {
-    const p = myPicks[g] || [];
-    return p.length === 4 && p.every(t => t && t !== '');
+    const raw = myPicks[g] || [];
+    const p = [0,1,2,3].map(i => (Array.isArray(raw) ? raw[i] : raw[i]) || '');
+    return p.every(t => t && t !== '');
   }).length;
   btn.textContent = complete === total
     ? '✅ Guardar predicciones (' + complete + '/12 completos)'
