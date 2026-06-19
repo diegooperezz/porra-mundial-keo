@@ -456,23 +456,16 @@
     <div class="divider"></div>
     <div class="settings-section">
       <h2>Penalizaciones</h2>
-      <p>Suma o resta puntos a cualquier jugador. Usa números negativos para restar (ej: -6). Se reflejan en la clasificación.</p>
-      <div id="penalty-list"></div>
-      <div style="margin-top:1rem">
-        <button class="btn btn-primary" onclick="savePenalties()">Guardar penalizaciones</button>
-      </div>
-    </div>
-    <div class="divider"></div>
-    <div class="settings-section" style="max-width:760px">
-      <h2>Log de auditoría</h2>
-      <p>Registro de todos los cambios de pronósticos con jugador, partido, hora y valores.</p>
-      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center">
-        <select id="audit-filter-player" onchange="renderAuditLog()" style="padding:6px 10px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);font-size:13px;background:var(--surface);color:var(--text)"></select>
-        <button class="btn btn-sm" onclick="clearAuditLog()" style="color:var(--red-text);border-color:var(--red-text)">🗑 Limpiar log</button>
-      </div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;max-height:420px;overflow-y:auto">
-        <div id="audit-log-container" class="audit-log"></div>
-      </div>
+      <p>Suma o resta puntos a cualquier jugador. Usa negativos para restar (ej: -6).</p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:1rem">
+        <thead><tr>
+          <td style="font-size:12px;color:var(--text3);padding:4px 6px">Jugador</td>
+          <td style="font-size:12px;color:var(--text3);padding:4px 6px;width:90px">Puntos</td>
+          <td style="font-size:12px;color:var(--text3);padding:4px 6px">Motivo</td>
+        </tr></thead>
+        <tbody id="penalty-tbody"></tbody>
+      </table>
+      <button class="btn btn-primary" onclick="savePenalties()">Guardar penalizaciones</button>
     </div>
   </section>
 </main>
@@ -1055,8 +1048,6 @@ function setPick(pidx, mid, side, val, isKo) {
   const oldVal = remoteData[key][pidx][mid][side];
   remoteData[key][pidx][mid][side] = val;
   fbSet(`${key}/${pidx}/${mid}`, remoteData[key][pidx][mid]);
-  // Audit log
-  addAuditEntry(pidx, mid, side, oldVal, val, isKo ? 'eliminatoria' : 'grupo');
 }
 
 function setReal(mid, side, val, isKo) {
@@ -1065,8 +1056,6 @@ function setReal(mid, side, val, isKo) {
   const oldVal = remoteData[key][mid][side];
   remoteData[key][mid][side] = val;
   fbSet(`${key}/${mid}`, remoteData[key][mid]);
-  // Audit log for real scores (attributed to admin)
-  addAuditEntry(-1, mid, side, oldVal, val, isKo ? 'resultado-ko' : 'resultado');
 }
 
 // ══════════════════════════════════════════
@@ -1786,29 +1775,30 @@ function renderCompareByStandings() {
 // PENALIZACIONES
 // ══════════════════════════════════════════
 function renderPenaltyList() {
-  const el = document.getElementById('penalty-list');
-  if (!el) return;
+  const tbody = document.getElementById('penalty-tbody');
+  if (!tbody) return;
   const penalties = remoteData.penalties || {};
-  el.innerHTML = remoteData.players.map((name, i) => {
-    const current = penalties[i] || { pts: 0, note: '' };
-    const ptsClass = current.pts < 0 ? 'negative' : current.pts > 0 ? 'positive' : '';
-    return `<div class="penalty-row">
-      <span class="penalty-name">${name}</span>
-      <span class="penalty-pts ${ptsClass}" id="pen-display-${i}">${current.pts > 0 ? '+' : ''}${current.pts}</span>
-      <input class="penalty-input" type="number" id="pen-pts-${i}" value="${current.pts}" placeholder="0"
-        oninput="updatePenDisplay(${i})">
-      <input class="penalty-note" type="text" id="pen-note-${i}" value="${current.note||''}" placeholder="Motivo (opcional)">
-    </div>`;
+  tbody.innerHTML = remoteData.players.map((name, i) => {
+    const pen = penalties[i] || { pts: 0, note: '' };
+    const pts = Number(pen.pts) || 0;
+    const color = pts < 0 ? 'var(--red-text)' : pts > 0 ? 'var(--green-text)' : 'var(--text)';
+    return `<tr>
+      <td style="padding:6px;font-weight:600;font-size:14px">${name}
+        <span style="font-size:13px;font-weight:700;margin-left:8px;color:${color}">${pts>0?'+':''}${pts}</span>
+      </td>
+      <td style="padding:6px">
+        <input type="number" id="pen-pts-${i}" value="${pts}"
+          style="width:80px;padding:7px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);font-size:14px;text-align:center;background:var(--surface);color:var(--text)">
+      </td>
+      <td style="padding:6px">
+        <input type="text" id="pen-note-${i}" value="${pen.note||''}" placeholder="Motivo"
+          style="width:100%;padding:7px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);font-size:13px;background:var(--surface);color:var(--text)">
+      </td>
+    </tr>`;
   }).join('');
 }
 
-function updatePenDisplay(i) {
-  const val = parseInt(document.getElementById('pen-pts-' + i)?.value) || 0;
-  const el = document.getElementById('pen-display-' + i);
-  if (!el) return;
-  el.textContent = (val > 0 ? '+' : '') + val;
-  el.className = 'penalty-pts ' + (val < 0 ? 'negative' : val > 0 ? 'positive' : '');
-}
+
 
 function savePenalties() {
   const penalties = {};
@@ -1820,84 +1810,18 @@ function savePenalties() {
   remoteData.penalties = penalties;
   fbSet('penalties', penalties);
   renderRanking();
+  renderPenaltyList();
   alert('✅ Penalizaciones guardadas.');
 }
 
 // ══════════════════════════════════════════
 // AUDITORÍA
 // ══════════════════════════════════════════
-function addAuditEntry(pidx, mid, side, oldVal, newVal, type) {
-  if (oldVal === newVal || oldVal === undefined) return;
-  const entry = {
-    ts: Date.now(),
-    pidx,
-    player: pidx === -1 ? 'Árbitro' : (remoteData.players[pidx] || 'Jugador ' + pidx),
-    mid,
-    side,
-    type,
-    old: oldVal ?? '—',
-    new: newVal
-  };
-  const key = 'auditLog/' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
-  fbSet(key, entry);
-}
 
-function renderAuditLog() {
-  const container = document.getElementById('audit-log-container');
-  const filterSel = document.getElementById('audit-filter-player');
-  if (!container) return;
 
-  // Update filter options
-  if (filterSel) {
-    const curFilter = filterSel.value;
-    filterSel.innerHTML = '<option value="all">Todos los jugadores</option>' +
-      ['Árbitro', ...remoteData.players].map((p, i) => {
-        const val = i === 0 ? 'admin' : String(i - 1);
-        return `<option value="${val}" ${curFilter===val?'selected':''}>${p}</option>`;
-      }).join('');
-  }
 
-  const filterVal = filterSel?.value || 'all';
-  const log = remoteData.auditLog || {};
-  const entries = Object.values(log)
-    .filter(e => {
-      if (filterVal === 'all') return true;
-      if (filterVal === 'admin') return e.pidx === -1;
-      return String(e.pidx) === filterVal;
-    })
-    .sort((a, b) => b.ts - a.ts)
-    .slice(0, 200);
 
-  if (!entries.length) {
-    container.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--text3);font-size:13px">Sin registros todavía</div>';
-    return;
-  }
 
-  container.innerHTML = `
-    <div class="audit-entry" style="background:var(--surface2);font-weight:600;font-size:11px;color:var(--text2)">
-      <span>Fecha/hora</span><span>Jugador</span><span>Acción</span><span>Cambio</span>
-    </div>
-    ${entries.map(e => {
-      const d = new Date(e.ts);
-      const time = d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit'}) + ' ' +
-                   d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
-      const action = `${e.type === 'resultado' || e.type === 'resultado-ko' ? '⚽ Resultado' : '📝 Pronóstico'} ${e.mid} (${e.side==='h'?'local':'visitante'})`;
-      const change = `${e.old ?? '—'} → ${e.new}`;
-      return `<div class="audit-entry">
-        <span class="audit-time">${time}</span>
-        <span class="audit-player">${e.player}</span>
-        <span class="audit-action">${action}</span>
-        <span class="audit-val">${change}</span>
-      </div>`;
-    }).join('')}`;
-}
-
-function clearAuditLog() {
-  if (!confirm('¿Borrar todo el log de auditoría? Esta acción no se puede deshacer.')) return;
-  remoteData.auditLog = {};
-  fbSet('auditLog', null);
-  renderAuditLog();
-}
 
 // ══════════════════════════════════════════
 // TABS
@@ -1921,7 +1845,6 @@ function showTab(name) {
     renderLockControl();
     renderSettingsPlayers();
     renderPenaltyList();
-    renderAuditLog();
   }
 }
 
