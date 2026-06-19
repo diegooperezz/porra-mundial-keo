@@ -1048,6 +1048,7 @@ function setPick(pidx, mid, side, val, isKo) {
   const oldVal = remoteData[key][pidx][mid][side];
   remoteData[key][pidx][mid][side] = val;
   fbSet(`${key}/${pidx}/${mid}`, remoteData[key][pidx][mid]);
+  addAuditEntry(pidx, mid, side, oldVal, val, isKo ? 'eliminatoria' : 'grupo');
 }
 
 function setReal(mid, side, val, isKo) {
@@ -1056,6 +1057,7 @@ function setReal(mid, side, val, isKo) {
   const oldVal = remoteData[key][mid][side];
   remoteData[key][mid][side] = val;
   fbSet(`${key}/${mid}`, remoteData[key][mid]);
+  addAuditEntry(-1, mid, side, oldVal, val, isKo ? 'resultado-ko' : 'resultado');
 }
 
 // ══════════════════════════════════════════
@@ -1822,6 +1824,34 @@ function savePenalties() {
 
 
 
+
+
+// ══════════════════════════════════════════
+// AUDITORÍA (solo escribe en Firebase, sin UI)
+// ══════════════════════════════════════════
+function addAuditEntry(pidx, mid, side, oldVal, newVal, type) {
+  if (oldVal === newVal) return;
+  if ((oldVal === '' || oldVal == null) && (newVal === '' || newVal == null)) return;
+  const player = pidx === -1 ? 'Árbitro' : (remoteData.players[pidx] || 'Jugador_' + pidx);
+  const now = new Date();
+  const ts = now.getTime();
+  const fecha = now.toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'});
+  const hora  = now.toLocaleTimeString('es-ES', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const entry = {
+    fecha,
+    hora,
+    ts,
+    jugador: player,
+    partido: mid,
+    campo: side === 'h' ? 'local' : 'visitante',
+    tipo: type,
+    anterior: oldVal ?? '—',
+    nuevo: newVal
+  };
+  // Key: timestamp + random suffix to avoid collisions
+  const key = ts + '_' + Math.random().toString(36).slice(2, 7);
+  if (db) db.ref('auditLog/' + key).set(entry);
+}
 
 // ══════════════════════════════════════════
 // TABS
