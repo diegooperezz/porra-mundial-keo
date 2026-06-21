@@ -2018,9 +2018,14 @@ function addAuditEntry(pidx, mid, side, oldVal, newVal, type) {
 
 
 function repairPlayerIndex() {
-  const from = parseInt(document.getElementById('repair-from').value);
-  const to = parseInt(document.getElementById('repair-to').value);
-  if (isNaN(from) || isNaN(to)) return alert('Introduce ambos índices.');
+  const fromEl = document.getElementById('repair-from');
+  const toEl = document.getElementById('repair-to');
+  console.log('repair debug', fromEl, toEl, fromEl?.value, toEl?.value);
+  const from = parseInt(fromEl?.value);
+  const to = parseInt(toEl?.value);
+  if (fromEl === null || toEl === null) return alert('No encuentro los campos en la página (bug de IDs).');
+  if (fromEl.value === '' || toEl.value === '') return alert('Rellena ambos campos antes de pulsar el botón.');
+  if (isNaN(from) || isNaN(to)) return alert('Introduce ambos índices como números (valores leídos: "' + fromEl.value + '" y "' + toEl.value + '").');
   if (from === to) return alert('Los índices deben ser distintos.');
   if (!confirm(`¿Mover TODOS los datos del índice ${from} al índice ${to}? Si el índice ${to} ya tiene datos, se sobrescribirán. Esta acción no se puede deshacer.`)) return;
 
