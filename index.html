@@ -434,8 +434,10 @@
       <h2>Ventana de pronósticos</h2>
       <p>Controla cuándo pueden los jugadores introducir o modificar sus pronósticos. El árbitro siempre puede operar.</p>
       <div class="lock-control" id="lock-control"></div>
-      <div style="margin-top:1rem">
+      <div style="margin-top:1rem;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <button class="btn btn-primary" onclick="saveLockMode()">Guardar ajuste</button>
+        <button class="btn btn-green" onclick="reopenToday()">🔓 Reabrir ahora</button>
+        <span id="window-status-text" style="font-size:12px;color:var(--text2)"></span>
       </div>
     </div>
     <div class="divider"></div>
@@ -511,100 +513,6 @@ const FIREBASE_CONFIG = {
 // ══════════════════════════════════════════
 // DATOS DEL MUNDIAL
 // ══════════════════════════════════════════
-// Kickoff times in Madrid timezone (hora España peninsular)
-const KICKOFFS = {
-  // Grupo A
-  A1: '2026-06-11T21:00:00+02:00',
-  A2: '2026-06-12T04:00:00+02:00',
-  A3: '2026-06-18T18:00:00+02:00',
-  A4: '2026-06-19T03:00:00+02:00',
-  A5: '2026-06-25T03:00:00+02:00',
-  A6: '2026-06-25T03:00:00+02:00',
-  // Grupo B
-  B1: '2026-06-12T21:00:00+02:00',
-  B2: '2026-06-13T21:00:00+02:00',
-  B3: '2026-06-18T21:00:00+02:00',
-  B4: '2026-06-19T00:00:00+02:00',
-  B5: '2026-06-24T21:00:00+02:00',
-  B6: '2026-06-24T21:00:00+02:00',
-  // Grupo C
-  C1: '2026-06-14T00:00:00+02:00',
-  C2: '2026-06-14T03:00:00+02:00',
-  C3: '2026-06-20T03:00:00+02:00',
-  C4: '2026-06-20T00:00:00+02:00',
-  C5: '2026-06-25T00:00:00+02:00',
-  C6: '2026-06-25T00:00:00+02:00',
-  // Grupo D
-  D1: '2026-06-12T18:00:00+02:00',
-  D2: '2026-06-14T21:00:00+02:00',
-  D3: '2026-06-19T21:00:00+02:00',
-  D4: '2026-06-20T18:00:00+02:00',
-  D5: '2026-06-25T21:00:00+02:00',
-  D6: '2026-06-25T21:00:00+02:00',
-  // Grupo E
-  E1: '2026-06-15T00:00:00+02:00',
-  E2: '2026-06-15T03:00:00+02:00',
-  E3: '2026-06-20T21:00:00+02:00',
-  E4: '2026-06-21T00:00:00+02:00',
-  E5: '2026-06-26T00:00:00+02:00',
-  E6: '2026-06-26T00:00:00+02:00',
-  // Grupo F
-  F1: '2026-06-15T18:00:00+02:00',
-  F2: '2026-06-15T21:00:00+02:00',
-  F3: '2026-06-21T18:00:00+02:00',
-  F4: '2026-06-21T21:00:00+02:00',
-  F5: '2026-06-26T21:00:00+02:00',
-  F6: '2026-06-26T21:00:00+02:00',
-  // Grupo G
-  G1: '2026-06-15T21:00:00+02:00',
-  G2: '2026-06-16T00:00:00+02:00',
-  G3: '2026-06-22T01:00:00+02:00',
-  G4: '2026-06-22T04:00:00+02:00',
-  G5: '2026-06-27T03:00:00+02:00',
-  G6: '2026-06-27T03:00:00+02:00',
-  // Grupo H
-  H1: '2026-06-15T17:00:00+02:00',
-  H2: '2026-06-15T23:00:00+02:00',
-  H3: '2026-06-21T19:00:00+02:00',
-  H4: '2026-06-22T03:00:00+02:00',
-  H5: '2026-06-27T03:00:00+02:00',
-  H6: '2026-06-27T03:00:00+02:00',
-  // Grupo I
-  I1: '2026-06-16T21:00:00+02:00',
-  I2: '2026-06-17T00:00:00+02:00',
-  I3: '2026-06-23T02:00:00+02:00',
-  I4: '2026-06-22T23:00:00+02:00',
-  I5: '2026-06-26T21:00:00+02:00',
-  I6: '2026-06-26T21:00:00+02:00',
-  // Grupo J
-  J1: '2026-06-17T03:00:00+02:00',
-  J2: '2026-06-17T06:00:00+02:00',
-  J3: '2026-06-22T21:00:00+02:00',
-  J4: '2026-06-23T00:00:00+02:00',
-  J5: '2026-06-26T18:00:00+02:00',
-  J6: '2026-06-26T18:00:00+02:00',
-  // Grupo K
-  K1: '2026-06-17T21:00:00+02:00',
-  K2: '2026-06-18T02:00:00+02:00',
-  K3: '2026-06-23T18:00:00+02:00',
-  K4: '2026-06-23T21:00:00+02:00',
-  K5: '2026-06-27T21:00:00+02:00',
-  K6: '2026-06-27T21:00:00+02:00',
-  // Grupo L
-  L1: '2026-06-17T18:00:00+02:00',
-  L2: '2026-06-18T00:00:00+02:00',
-  L3: '2026-06-23T03:00:00+02:00',
-  L4: '2026-06-24T00:00:00+02:00',
-  L5: '2026-06-27T18:00:00+02:00',
-  L6: '2026-06-27T18:00:00+02:00',
-};
-
-function isMatchStarted(mid) {
-  const ko = KICKOFFS[mid];
-  if (!ko) return false; // KO matches: locked when admin sets result
-  return serverNow() >= new Date(ko);
-}
-
 const GROUPS = {
   A:{teams:['México','Sudáfrica','Corea del Sur','Rep. Checa'],matches:[
     {id:'A1',date:'11 jun',h:'México',a:'Sudáfrica'},
@@ -776,6 +684,7 @@ let remoteData = {
   picks: {}, koPicks: {},
   standingsPicks: {}, standingsSaved: {},
   penalties: {}, auditLog: {},
+  lastReopenedAt: 0,
   realScores: {}, koRealScores: {},
 };
 
@@ -785,15 +694,27 @@ let remoteData = {
 //             'open'   = forzar apertura siempre
 //             'closed' = forzar cierre siempre
 // ══════════════════════════════════════════
+// La ventana se cierra automáticamente cada día a las 19:00 (hora Madrid).
+// Solo el árbitro puede reabrirla manualmente pulsando un botón.
+// Cada reapertura es válida hasta el siguiente cierre automático (19:00 del mismo o siguiente día).
 function isWindowOpen() {
   const mode = remoteData.lockMode || 'auto';
-  if (mode === 'open') return true;
-  if (mode === 'closed') return false;
-  // auto: abierto de 09:00 a 19:00 hora Madrid
-  const now = new Date();
+  if (mode === 'open') return true;   // forzado abierto permanentemente
+  if (mode === 'closed') return false; // forzado cerrado permanentemente
+
+  // modo auto: calculamos el último cierre de las 19:00 (hora Madrid)
   const madrid = new Date(serverNow().toLocaleString('en-US', { timeZone: 'Europe/Madrid' }));
-  const h = madrid.getHours();
-  return h >= 9 && h < 19;
+  const lastClose = new Date(madrid);
+  lastClose.setHours(19, 0, 0, 0);
+  if (madrid < lastClose) {
+    // Aún no han dado las 19:00 hoy → el cierre relevante es el de ayer a las 19:00
+    lastClose.setDate(lastClose.getDate() - 1);
+  }
+  const lastCloseTs = lastClose.getTime();
+
+  // Si el árbitro reabrió después del último cierre automático, sigue abierto
+  const reopenedAt = remoteData.lastReopenedAt || 0;
+  return reopenedAt > lastCloseTs;
 }
 
 function isLockedForPlayer() {
@@ -841,6 +762,7 @@ function initFirebase() {
         koRealScores: d.koRealScores || {},
         standingsPicks: d.standingsPicks || {},
         standingsSaved: d.standingsSaved || {},
+        lastReopenedAt: d.lastReopenedAt || 0,
         penalties: d.penalties || {},
         auditLog: d.auditLog || {},
       };
@@ -1128,8 +1050,7 @@ function renderMatches() {
       const isPlayed = real.h !== '' && real.h != null;
       const pick = isAdmin ? null : (remoteData.picks[pidx]||{})[m.id]||{h:'',a:''};
       const pts = isAdmin ? null : calcPts(pidx, m.id, false);
-      const kickedOff = isMatchStarted(m.id);
-      const canEdit = !isAdmin && !isPlayed && !locked && !kickedOff;
+      const canEdit = !isAdmin && !isPlayed && !locked;
 
       const ptsBadge = isAdmin ? '' : pts===null
         ? `<span class="pts pts-n">—</span>`
@@ -1156,13 +1077,10 @@ function renderMatches() {
             onchange="setReal('${m.id}','a',this.value,false)">
         </div>` : '';
 
-      const startedLabel = !isAdmin && kickedOff && !isPlayed
-        ? `<span style="font-size:11px;background:var(--amber-bg);color:var(--amber-text);padding:2px 7px;border-radius:4px;flex-shrink:0">En juego</span>`
-        : '';
-      return `<div class="match ${isPlayed&&!isAdmin?'played':''}" style="${kickedOff&&!isPlayed&&!isAdmin?'opacity:0.75':''}">
+      return `<div class="match ${isPlayed&&!isAdmin?'played':''}">
         <span class="match-date">${m.date}</span>
         <div class="match-teams"><span class="team">${m.h}</span><span class="vs">vs</span><span class="team">${m.a}</span></div>
-        ${pickInputs}${realInputs}${startedLabel||''}${ptsBadge}
+        ${pickInputs}${realInputs}${ptsBadge}
       </div>`;
     }).join('');
 
@@ -1291,9 +1209,9 @@ function renderRanking() {
 // SETTINGS
 // ══════════════════════════════════════════
 const LOCK_OPTIONS = [
-  { value:'auto',   title:'Automático (recomendado)',  desc:'Abierto de 09:00 a 19:00 hora Madrid. Bloqueado el resto del día.' },
-  { value:'open',   title:'Forzar apertura',           desc:'La ventana está abierta siempre, independientemente de la hora.' },
-  { value:'closed', title:'Forzar cierre',             desc:'La ventana está cerrada siempre. Solo el árbitro puede operar.' },
+  { value:'auto',   title:'Automático (recomendado)',  desc:'Se bloquea solo cada día a las 19:00 (hora Madrid). Para reabrir un nuevo día, usa el botón "Reabrir hoy" más abajo.' },
+  { value:'open',   title:'Forzar apertura',           desc:'La ventana está abierta siempre, sin importar la hora ni los cierres diarios.' },
+  { value:'closed', title:'Forzar cierre',             desc:'La ventana está cerrada siempre, incluso si reabres manualmente.' },
 ];
 
 function renderLockControl() {
@@ -1322,7 +1240,26 @@ function saveLockMode() {
   updateLockIndicator();
   renderMatches();
   renderKnockout();
+  updateWindowStatusText();
   alert('✅ Ajuste de ventana guardado.');
+}
+
+function reopenToday() {
+  const now = serverNow().getTime();
+  remoteData.lastReopenedAt = now;
+  fbSet('lastReopenedAt', now);
+  updateLockIndicator();
+  renderMatches();
+  renderKnockout();
+  updateWindowStatusText();
+  alert('🔓 Ventana reabierta. Se bloqueará de nuevo a las 19:00 (hora Madrid).');
+}
+
+function updateWindowStatusText() {
+  const el = document.getElementById('window-status-text');
+  if (!el) return;
+  const open = isWindowOpen();
+  el.textContent = open ? '🟢 Ventana abierta ahora mismo' : '🔒 Ventana cerrada ahora mismo';
 }
 
 function renderSettingsPlayers() {
@@ -2069,6 +2006,7 @@ function showTab(name) {
     renderLockControl();
     renderSettingsPlayers();
     renderPenaltyList();
+    updateWindowStatusText();
   }
 }
 
