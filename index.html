@@ -358,8 +358,10 @@
       <h2 style="color:var(--red-text)">⚠️ Reparación temporal de índices</h2>
       <p style="color:var(--red-text)">Mueve todos los datos de un índice de jugador a otro (picks, eliminatorias, clasificación, penalizaciones). Úsalo solo si has borrado un jugador y se han descuadrado los índices. Quita esta sección del código cuando termines.</p>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <label style="font-size:13px">Desde índice: <input type="number" id="repair-from" min="0" max="9" style="width:60px;padding:6px;border-radius:6px;border:1px solid var(--border-strong);text-align:center"></label>
-        <label style="font-size:13px">A índice: <input type="number" id="repair-to" min="0" max="9" style="width:60px;padding:6px;border-radius:6px;border:1px solid var(--border-strong);text-align:center"></label>
+        <label style="font-size:13px">Desde índice: <input type="number" id="repair-from" min="0" max="9"
+          oninput="window._repairFrom=this.value" style="width:60px;padding:6px;border-radius:6px;border:1px solid var(--border-strong);text-align:center"></label>
+        <label style="font-size:13px">A índice: <input type="number" id="repair-to" min="0" max="9"
+          oninput="window._repairTo=this.value" style="width:60px;padding:6px;border-radius:6px;border:1px solid var(--border-strong);text-align:center"></label>
         <button class="btn btn-primary" onclick="repairPlayerIndex()">Mover datos</button>
       </div>
     </div>
@@ -468,8 +470,10 @@
       <h2 style="color:var(--red-text)">⚠️ Reparación temporal de índices</h2>
       <p style="color:var(--red-text)">Mueve todos los datos de un índice de jugador a otro (picks, eliminatorias, clasificación, penalizaciones). Úsalo solo si has borrado un jugador y se han descuadrado los índices. Quita esta sección del código cuando termines.</p>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <label style="font-size:13px">Desde índice: <input type="number" id="repair-from" min="0" max="9" style="width:60px;padding:6px;border-radius:6px;border:1px solid var(--border-strong);text-align:center"></label>
-        <label style="font-size:13px">A índice: <input type="number" id="repair-to" min="0" max="9" style="width:60px;padding:6px;border-radius:6px;border:1px solid var(--border-strong);text-align:center"></label>
+        <label style="font-size:13px">Desde índice: <input type="number" id="repair-from" min="0" max="9"
+          oninput="window._repairFrom=this.value" style="width:60px;padding:6px;border-radius:6px;border:1px solid var(--border-strong);text-align:center"></label>
+        <label style="font-size:13px">A índice: <input type="number" id="repair-to" min="0" max="9"
+          oninput="window._repairTo=this.value" style="width:60px;padding:6px;border-radius:6px;border:1px solid var(--border-strong);text-align:center"></label>
         <button class="btn btn-primary" onclick="repairPlayerIndex()">Mover datos</button>
       </div>
     </div>
@@ -2018,14 +2022,13 @@ function addAuditEntry(pidx, mid, side, oldVal, newVal, type) {
 
 
 function repairPlayerIndex() {
-  const fromEl = document.getElementById('repair-from');
-  const toEl = document.getElementById('repair-to');
-  console.log('repair debug', fromEl, toEl, fromEl?.value, toEl?.value);
-  const from = parseInt(fromEl?.value);
-  const to = parseInt(toEl?.value);
-  if (fromEl === null || toEl === null) return alert('No encuentro los campos en la página (bug de IDs).');
-  if (fromEl.value === '' || toEl.value === '') return alert('Rellena ambos campos antes de pulsar el botón.');
-  if (isNaN(from) || isNaN(to)) return alert('Introduce ambos índices como números (valores leídos: "' + fromEl.value + '" y "' + toEl.value + '").');
+  // Read from window vars (set on every keystroke) — immune to re-renders wiping the DOM input
+  const fromVal = window._repairFrom ?? document.getElementById('repair-from')?.value ?? '';
+  const toVal = window._repairTo ?? document.getElementById('repair-to')?.value ?? '';
+  const from = parseInt(fromVal);
+  const to = parseInt(toVal);
+  if (fromVal === '' || toVal === '') return alert('Rellena ambos campos antes de pulsar el botón.');
+  if (isNaN(from) || isNaN(to)) return alert('Introduce ambos índices como números válidos.');
   if (from === to) return alert('Los índices deben ser distintos.');
   if (!confirm(`¿Mover TODOS los datos del índice ${from} al índice ${to}? Si el índice ${to} ya tiene datos, se sobrescribirán. Esta acción no se puede deshacer.`)) return;
 
