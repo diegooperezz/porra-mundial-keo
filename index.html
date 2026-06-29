@@ -413,6 +413,7 @@
         <option value="G">Grupo G</option><option value="H">Grupo H</option>
         <option value="I">Grupo I</option><option value="J">Grupo J</option>
         <option value="K">Grupo K</option><option value="L">Grupo L</option>
+        <option value="ko">Eliminatorias</option>
       </select>
       <select id="compare-player-filter" onchange="renderCompare()" style="display:none">
       </select>
@@ -1730,6 +1731,9 @@ function setCompareView(view) {
   document.getElementById('btn-view-standings').classList.toggle('active', view === 'standings');
   document.getElementById('compare-group-filter').style.display = view === 'standings' ? 'none' : '';
   document.getElementById('compare-player-filter').style.display = view === 'player' ? '' : 'none';
+  // Reset to 'all' if switching away from ko
+  const gf = document.getElementById('compare-group-filter');
+  if (view !== 'match' && view !== 'player' && gf) gf.value = 'all';
   renderCompare();
 }
 
@@ -1752,8 +1756,11 @@ function renderCompare() {
     pf.innerHTML = remoteData.players.map((p,i) => `<option value="${i}" ${parseInt(cur)===i?'selected':''}>${p}</option>`).join('');
   }
 
-  if (compareView === 'match') renderCompareByMatch();
-  else if (compareView === 'player') renderCompareByPlayer();
+  if (compareView === 'match') {
+    const filter = document.getElementById('compare-group-filter')?.value || 'all';
+    if (filter === 'ko') renderCompareKnockoutByMatch();
+    else renderCompareByMatch();
+  } else if (compareView === 'player') renderCompareByPlayer();
   else renderCompareByStandings();
 }
 
@@ -1833,9 +1840,78 @@ function renderCompareByPlayer() {
   const pidx = pf ? parseInt(pf.value) || 0 : 0;
   const container = document.getElementById('compare-container');
   const filter = document.getElementById('compare-group-filter')?.value || 'all';
-  const groups = filter === 'all' ? Object.keys(GROUPS) : [filter];
+  const showKo = filter === 'all' || filter === 'ko';
+  const showGroups = filter !== 'ko';
+  const groups = (filter === 'all' || filter === 'ko') ? Object.keys(GROUPS) : [filter];
+
+  // Update player filter options
+  if (pf) {
+    const cur = pf.value;
+    pf.innerHTML = remoteData.players.map((p,i) =>
+      `<option value="${i}" ${parseInt(cur)===i?'selected':''}>${p}</option>`
+    ).join('');
+  }
 
   const { total, played } = totalPts(pidx);
+
+  let groupRows = '';
+  if (showGroups && filter !== 'ko') {
+    groupRows = groups.map(g => {
+      const grp = GROUPS[g];
+      return grp.matches.map(m => {
+        const real = remoteData.realScores[m.id];
+        const isPlayed = real && real.h != null && real.h !== '';
+        const pick = (remoteData.picks[pidx] || {})[m.id];
+        const pts = calcPts(pidx, m.id, false);
+        if (!isPlayed) return `<div class="player-picks-row">
+          <span class="group-section-label">${g}</span>
+          <div class="match-teams" style="flex:1"><span class="team">${m.h}</span><span class="vs" style="margin:0 6px">vs</span><span class="team">${m.a}</span></div>
+          <span class="match-date-sm">${m.date}</span>
+          <span class="hidden-label">🔒 Pendiente</span>
+        </div>`;
+        const pickStr = pick && pick.h != null && pick.h !== '' ? `${pick.h}–${pick.a}` : '—';
+        const ptsCls = pts===3?'pts-3':pts===1?'pts-1':pts===0?'pts-0':'pts-n';
+        return `<div class="player-picks-row">
+          <span class="group-section-label">${g}</span>
+          <div class="match-teams" style="flex:1"><span class="team">${m.h}</span><span class="vs" style="margin:0 6px">vs</span><span class="team">${m.a}</span></div>
+          <span class="match-date-sm">${m.date}</span>
+          <span style="font-size:12px;color:var(--text2)">Pred: <strong>${pickStr}</strong></span>
+          <span style="font-size:12px;color:var(--text2)">Real: <strong>${real.h}–${real.a}</strong></span>
+          <span class="pts ${ptsCls}" style="font-size:11px;padding:2px 6px">${pts!==null?'+'+pts:'—'}</span>
+        </div>`;
+      }).join('');
+    }).join('');
+  }
+
+  let koRows = '';
+  if (showKo) {
+    koRows = KO_ROUNDS.map(round => {
+      return round.matches.map(m => {
+        const tH = resolveTeam(m.hSeed, m);
+        const tA = resolveTeam(m.aSeed, m);
+        const known = tH && tA;
+        const real = remoteData.koRealScores[m.id];
+        const isPlayed = real && real.h != null && real.h !== '';
+        const pick = (remoteData.koPicks[pidx] || {})[m.id];
+        const pts = calcPts(pidx, m.id, true);
+        if (!known) return '';
+        if (!isPlayed) return `<div class="player-picks-row">
+          <span class="group-section-label" style="background:var(--amber-bg);color:var(--amber-text)">${round.label.split(' ')[0]}</span>
+          <div class="match-teams" style="flex:1"><span class="team">${tH}</span><span class="vs" style="margin:0 6px">vs</span><span class="team">${tA}</span></div>
+          <span class="hidden-label">🔒 Pendiente</span>
+        </div>`;
+        const pickStr = pick && pick.h != null && pick.h !== '' ? `${pick.h}–${pick.a}` : '—';
+        const ptsCls = pts===null?'pts-n':pts>9?'pts-3':pts>4?'pts-1':pts>0?'pts-1':'pts-0';
+        return `<div class="player-picks-row">
+          <span class="group-section-label" style="background:var(--amber-bg);color:var(--amber-text)">${round.label.split(' ')[0]}</span>
+          <div class="match-teams" style="flex:1"><span class="team">${tH}</span><span class="vs" style="margin:0 6px">vs</span><span class="team">${tA}</span></div>
+          <span style="font-size:12px;color:var(--text2)">Pred: <strong>${pickStr}</strong></span>
+          <span style="font-size:12px;color:var(--text2)">Real: <strong>${real.h}–${real.a}</strong></span>
+          <span class="pts ${ptsCls}" style="font-size:11px;padding:2px 6px">${pts!==null?'+'+pts:'—'}</span>
+        </div>`;
+      }).join('');
+    }).join('');
+  }
 
   container.innerHTML = `
     <div class="player-card">
@@ -1843,43 +1919,7 @@ function renderCompareByPlayer() {
         <span class="player-card-name">${remoteData.players[pidx]}</span>
         <span class="player-card-pts">${total} pts · ${played} partidos evaluados</span>
       </div>
-      ${groups.map(g => {
-        const grp = GROUPS[g];
-        const rows = grp.matches.map(m => {
-          const real = remoteData.realScores[m.id];
-          const isPlayed = real && real.h != null && real.h !== '';
-          const pick = (remoteData.picks[pidx] || {})[m.id];
-          const pts = calcPts(pidx, m.id, false);
-
-          if (!isPlayed) {
-            return `<div class="player-picks-row">
-              <span class="group-section-label">${g}</span>
-              <div class="match-teams" style="flex:1">
-                <span class="team">${m.h}</span><span class="vs" style="margin:0 6px">vs</span><span class="team">${m.a}</span>
-              </div>
-              <span class="match-date-sm">${m.date}</span>
-              <span class="hidden-label">🔒 Pendiente</span>
-            </div>`;
-          }
-
-          const pickStr = pick && pick.h != null && pick.h !== '' ? `${pick.h}–${pick.a}` : '—';
-          const ptsCls = pts === 3 ? 'pts-3' : pts === 1 ? 'pts-1' : pts === 0 ? 'pts-0' : 'pts-n';
-          const realStr = `${real.h}–${real.a}`;
-
-          return `<div class="player-picks-row">
-            <span class="group-section-label">${g}</span>
-            <div class="match-teams" style="flex:1">
-              <span class="team">${m.h}</span><span class="vs" style="margin:0 6px">vs</span><span class="team">${m.a}</span>
-            </div>
-            <span class="match-date-sm">${m.date}</span>
-            <span style="font-size:12px;color:var(--text2)">Pred: <strong>${pickStr}</strong></span>
-            <span style="font-size:12px;color:var(--text2)">Real: <strong>${realStr}</strong></span>
-            <span class="pts ${ptsCls}" style="font-size:11px;padding:2px 6px">${pts!=null?'+'+pts:'—'}</span>
-          </div>`;
-        }).join('');
-
-        return rows;
-      }).join('')}
+      ${groupRows}${koRows}
     </div>`;
 }
 
@@ -2060,6 +2100,66 @@ function repairPlayerIndex() {
   });
 
   alert(`✅ Datos movidos de índice ${from} a ${to}. Recarga la página para ver los cambios.`);
+}
+
+
+function renderCompareKnockoutByMatch() {
+  const container = document.getElementById('compare-container');
+  const players = remoteData.players;
+
+  container.innerHTML = KO_ROUNDS.map(round => {
+    const playedMatches = round.matches.filter(m => {
+      const r = remoteData.koRealScores[m.id];
+      return r && r.h != null && r.h !== '';
+    });
+
+    if (playedMatches.length === 0) return `
+      <div style="margin-bottom:1.5rem">
+        <div style="font-size:14px;font-weight:600;color:var(--text2);margin-bottom:6px">${round.label}</div>
+        <div style="font-size:13px;color:var(--text3);padding:12px;background:var(--surface);border-radius:var(--radius-sm)">Sin partidos disputados aún</div>
+      </div>`;
+
+    const headerCols = players.map(p => `<th style="text-align:center;min-width:80px;font-size:12px">${p}</th>`).join('');
+
+    const rows = playedMatches.map(m => {
+      const tH = resolveTeam(m.hSeed, m);
+      const tA = resolveTeam(m.aSeed, m);
+      const real = remoteData.koRealScores[m.id];
+      const realStr = `${real.h}–${real.a}`;
+      const pickCols = players.map((p, i) => {
+        const pick = (remoteData.koPicks[i] || {})[m.id];
+        const pts = calcPts(i, m.id, true);
+        if (!pick || pick.h == null || pick.h === '') return `<td><span style="color:var(--text3);font-size:12px">—</span></td>`;
+        const cls = pts > 9 ? 'pts-3' : pts > 0 ? 'pts-1' : pts === 0 ? 'pts-0' : 'pts-n';
+        return `<td><div class="pick-cell">
+          <span class="pick-score">${pick.h}–${pick.a}</span>
+          <span class="pts ${cls}" style="font-size:11px;padding:1px 5px">${pts!==null?'+'+pts:'—'}</span>
+        </div></td>`;
+      }).join('');
+
+      return `<tr>
+        <td class="match-info">
+          <div class="match-name" style="font-size:13px">${tH||m.hSeed} vs ${tA||m.aSeed}</div>
+        </td>
+        <td><span class="real-score-cell">${realStr}</span></td>
+        ${pickCols}
+      </tr>`;
+    }).join('');
+
+    return `<div style="margin-bottom:1.5rem">
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">${round.label}</div>
+      <div class="compare-table-wrap">
+        <table class="compare-table">
+          <thead><tr>
+            <th class="match-col">Partido</th>
+            <th style="background:var(--green-bg);color:var(--green-text)">Resultado</th>
+            ${headerCols}
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ══════════════════════════════════════════
