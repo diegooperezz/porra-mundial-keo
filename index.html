@@ -272,7 +272,6 @@
     <button class="tab active" onclick="showTab('picks')">Fase de grupos</button>
     <button class="tab" onclick="showTab('knockout')">Eliminatorias</button>
     <button class="tab" onclick="showTab('ranking')">Clasificación</button>
-    <button class="tab" onclick="showTab('standings')">Resultados grupos</button>
     <button class="tab" onclick="showTab('compare')">Predicciones</button>
     <button class="tab" onclick="showTab('settings')" id="tab-settings-btn" style="display:none">Ajustes</button>
   </div>
@@ -352,41 +351,6 @@
         💾 Guardar predicciones (0/12 completos)
       </button>
       <span style="font-size:12px;color:var(--text2)">Las predicciones no se guardan hasta pulsar este botón</span>
-    </div>
-    <div class="divider"></div>
-    <div class="settings-section" style="background:var(--red-bg);padding:1rem;border-radius:var(--radius)">
-      <h2 style="color:var(--red-text)">⚠️ Reparación temporal de índices</h2>
-      <p style="color:var(--red-text)">Mueve todos los datos de un índice de jugador a otro (picks, eliminatorias, clasificación, penalizaciones). Úsalo solo si has borrado un jugador y se han descuadrado los índices. Quita esta sección del código cuando termines.</p>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <label style="font-size:13px">Desde índice: <input type="number" id="repair-from" min="0" max="9"
-          oninput="window._repairFrom=this.value" style="width:60px;padding:6px;border-radius:6px;border:1px solid var(--border-strong);text-align:center"></label>
-        <label style="font-size:13px">A índice: <input type="number" id="repair-to" min="0" max="9"
-          oninput="window._repairTo=this.value" style="width:60px;padding:6px;border-radius:6px;border:1px solid var(--border-strong);text-align:center"></label>
-        <button class="btn btn-primary" onclick="repairPlayerIndex()">Mover datos</button>
-      </div>
-    </div>
-    <div class="divider"></div>
-    <div class="settings-section">
-      <h2>Penalizaciones</h2>
-      <p>Suma o resta puntos a cualquier jugador. El valor se añade directamente a su clasificación.</p>
-      <div id="penalty-list"></div>
-      <div style="margin-top:1rem">
-        <button class="btn btn-primary" onclick="savePenalties()">Guardar penalizaciones</button>
-      </div>
-    </div>
-    <div class="divider"></div>
-    <div class="settings-section" style="max-width:700px">
-      <h2>Log de auditoría</h2>
-      <p>Todos los cambios de pronósticos registrados con fecha, jugador y valores.</p>
-      <div style="display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap">
-        <select id="audit-filter-player" onchange="renderAuditLog()" style="font-size:13px">
-          <option value="all">Todos los jugadores</option>
-        </select>
-        <button class="btn btn-sm" onclick="clearAuditLog()" style="color:var(--red-text);border-color:var(--red-text)">Limpiar log</button>
-      </div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;max-height:400px;overflow-y:auto">
-        <div class="audit-log" id="audit-log-container"></div>
-      </div>
     </div>
   </section>
 
@@ -685,6 +649,7 @@ let remoteData = {
   picks: {}, koPicks: {},
   standingsPicks: {}, standingsSaved: {},
   penalties: {}, auditLog: {},
+  koAdvances: {},
   lastReopenedAt: 0,
   realScores: {}, koRealScores: {},
 };
@@ -763,6 +728,7 @@ function initFirebase() {
         koRealScores: d.koRealScores || {},
         standingsPicks: d.standingsPicks || {},
         standingsSaved: d.standingsSaved || {},
+        koAdvances: d.koAdvances || {},
         lastReopenedAt: d.lastReopenedAt || 0,
         penalties: d.penalties || {},
         auditLog: d.auditLog || {},
@@ -869,6 +835,17 @@ function koTier(mid) {
   return 'r32';
 }
 
+// Puntos por ronda de eliminatoria:
+// noDrawPick: [exacto, signo]           — cuando el jugador predijo un marcador NO empatado
+// drawPick:   [exacto, signo, avance]   — cuando el jugador predijo un marcador empatado
+const KO_SCORING = {
+  r32:   { noDraw: [5, 3],  draw: [4, 2, 1] },   // Dieciseisavos
+  r16:   { noDraw: [5, 3],  draw: [4, 2, 1] },   // Octavos
+  qf:    { noDraw: [10, 5], draw: [8, 3, 2] },   // Cuartos
+  sf:    { noDraw: [10, 5], draw: [8, 3, 2] },   // Semifinales
+  final: { noDraw: [25, 10],draw: [20, 5, 5] },  // Final
+};
+
 function calcPts(pidx, mid, isKo) {
   const scores = isKo ? remoteData.koRealScores : remoteData.realScores;
   const allPicks = isKo ? remoteData.koPicks : remoteData.picks;
@@ -886,16 +863,45 @@ function calcPts(pidx, mid, isKo) {
     return 0;
   }
 
-  // Knockout: tiered scoring
-  const tier = koTier(mid);
-  let exactPts, signPts;
-  if (tier === 'r32' || tier === 'r16') { exactPts = 5; signPts = 3; }
-  else if (tier === 'qf' || tier === 'sf') { exactPts = 10; signPts = 5; }
-  else { exactPts = 25; signPts = 10; } // final
+  // Knockout: puntuación depende de si el jugador predijo empate o no
+  const tier = KO_SCORING[koTier(mid)] || KO_SCORING.r32;
+  const pickIsDraw = (ph === pa);
+  const realIsDraw = (rh === ra);
+  const advPts = tier.draw[2];
 
-  if (rh === ph && ra === pa) return exactPts;
-  if (winner(rh, ra) === winner(ph, pa)) return signPts;
-  return 0;
+  let total = 0;
+
+  // Quién pasa según el resultado real: si fue empate, lo decide el desplegable del árbitro;
+  // si no, lo decide directamente el marcador
+  const realAdvances = realIsDraw ? (remoteData.koAdvances || {})[mid] : (rh > ra ? 'h' : 'a');
+
+  if (!pickIsDraw) {
+    // El jugador predijo un ganador claro (no empate) -> su elección de avance es implícita: ph>pa ? 'h' : 'a'
+    const pickAdvances = ph > pa ? 'h' : 'a';
+
+    if (!realIsDraw) {
+      // Resultado real también tiene ganador
+      const [exactPts, signPts] = tier.noDraw;
+      if (rh === ph && ra === pa) total += exactPts;
+      else if (winner(rh, ra) === winner(ph, pa)) total += signPts;
+    }
+    // Bonus por acertar quién pasa, aplica incluso si predijo ganador pero el real fue empate
+    if (realAdvances && realAdvances === pickAdvances) total += advPts;
+
+    return total;
+  } else {
+    // El jugador predijo empate -> su elección de avance es la del desplegable "¿Quién pasa?"
+    const pickAdvances = p.adv;
+
+    if (realIsDraw) {
+      const [exactPts, signPts] = tier.draw;
+      if (rh === ph && ra === pa) total += exactPts;
+      else total += signPts; // acertó que sería empate pero no el marcador exacto
+    }
+    // Bonus por acertar quién pasa de ronda (aplica tanto si acertó el empate como si no)
+    if (realAdvances && pickAdvances && realAdvances === pickAdvances) total += advPts;
+    return total;
+  }
 }
 
 // Group standings prediction scoring: 3pts per position correct, 10 if all 4 correct
@@ -1136,15 +1142,36 @@ function renderKnockout() {
       const known = teamH && teamA;
       const real = remoteData.koRealScores[m.id]||{h:'',a:''};
       const isPlayed = real.h !== '' && real.h != null;
+      const realIsDraw = isPlayed && parseInt(real.h) === parseInt(real.a);
+      const realAdv = (remoteData.koAdvances || {})[m.id] || '';
+
       const pick = isAdmin ? null : (remoteData.koPicks[pidx]||{})[m.id]||{h:'',a:''};
+      const pickIsDraw = pick && pick.h !== '' && pick.h != null && parseInt(pick.h) === parseInt(pick.a);
       const pts = isAdmin ? null : calcPts(pidx, m.id, true);
       const canEdit = !isAdmin && known && !isPlayed && !locked;
 
+      const tierData = KO_SCORING[koTier(m.id)] || KO_SCORING.r32;
+      const pickIsDrawBadge = pick && pick.h !== '' && pick.h != null && parseInt(pick.h) === parseInt(pick.a);
+      const tierExact = pickIsDrawBadge ? tierData.draw[0] : tierData.noDraw[0];
       const ptsBadge = isAdmin||!known ? '' : pts===null
         ? `<span class="pts pts-n" style="font-size:11px">—</span>`
-        : pts===3 ? `<span class="pts pts-3" style="font-size:11px">+3</span>`
-        : pts===1 ? `<span class="pts pts-1" style="font-size:11px">+1</span>`
-        : `<span class="pts pts-0" style="font-size:11px">0</span>`;
+        : pts===0 ? `<span class="pts pts-0" style="font-size:11px">0</span>`
+        : pts>=tierExact ? `<span class="pts pts-3" style="font-size:11px">+${pts}</span>`
+        : `<span class="pts pts-1" style="font-size:11px">+${pts}</span>`;
+
+      // Dropdown "¿quién pasa?" shown only when the player's own predicted scoreline is a draw
+      const advDropdown = (!isAdmin && pickIsDraw && canEdit) ? `
+        <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+          <span style="font-size:11px;color:var(--text2)">¿Quién pasa?</span>
+          <select style="font-size:12px;padding:4px 6px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:var(--surface);color:var(--text)"
+            onchange="setKoAdvancePick(${pidx},'${m.id}',this.value)">
+            <option value="">— Elige —</option>
+            <option value="h" ${(pick.adv==='h')?'selected':''}>${teamH}</option>
+            <option value="a" ${(pick.adv==='a')?'selected':''}>${teamA}</option>
+          </select>
+        </div>` : '';
+      const advDropdownStatic = (!isAdmin && pickIsDraw && !canEdit && pick.adv) ? `
+        <div style="font-size:11px;color:var(--text2);margin-top:6px">Pasa: <strong>${pick.adv==='h'?teamH:teamA}</strong></div>` : '';
 
       const pickRow = isAdmin ? '' : `
         <div style="display:flex;align-items:center;gap:5px;margin-top:8px">
@@ -1156,7 +1183,20 @@ function renderKnockout() {
             value="${pick?.a??''}" placeholder="–" ${canEdit?'':'disabled'}
             onchange="setPick(${pidx},'${m.id}','a',this.value,true)">
           <span style="flex:1"></span>${ptsBadge}
-        </div>`;
+        </div>
+        ${advDropdown}${advDropdownStatic}`;
+
+      // Admin: enter real score, and if it's a draw, pick who advances
+      const advAdminDropdown = (isAdmin && known && realIsDraw) ? `
+        <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+          <span style="font-size:11px;color:var(--amber-text)">¿Quién pasó? (empate)</span>
+          <select style="font-size:12px;padding:4px 6px;border:1px solid var(--amber);border-radius:var(--radius-sm);background:var(--surface);color:var(--text)"
+            onchange="setKoAdvanceReal('${m.id}',this.value)">
+            <option value="">— Elige —</option>
+            <option value="h" ${realAdv==='h'?'selected':''}>${teamH}</option>
+            <option value="a" ${realAdv==='a'?'selected':''}>${teamA}</option>
+          </select>
+        </div>` : '';
 
       const realRow = isAdmin && known ? `
         <div style="display:flex;align-items:center;gap:5px;margin-top:8px;padding-top:6px;border-top:1px solid var(--border)">
@@ -1166,7 +1206,8 @@ function renderKnockout() {
           <span class="score-sep" style="font-size:12px">–</span>
           <input class="real-in" style="width:34px;height:30px;font-size:13px" type="number" min="0" max="20"
             value="${real.a??''}" placeholder="–" onchange="setReal('${m.id}','a',this.value,true)">
-        </div>` : '';
+        </div>
+        ${advAdminDropdown}` : '';
 
       return `<div class="ko-match ${isPlayed&&!isAdmin?'played':''}">
         <div class="ko-match-label">${m.label}</div>
@@ -1901,7 +1942,10 @@ function renderCompareByPlayer() {
           <span class="hidden-label">🔒 Pendiente</span>
         </div>`;
         const pickStr = pick && pick.h != null && pick.h !== '' ? `${pick.h}–${pick.a}` : '—';
-        const ptsCls = pts===null?'pts-n':pts>9?'pts-3':pts>4?'pts-1':pts>0?'pts-1':'pts-0';
+        const tierDataP = KO_SCORING[koTier(m.id)] || KO_SCORING.r32;
+        const pickIsDrawP = pick && pick.h != null && pick.h !== '' && parseInt(pick.h) === parseInt(pick.a);
+        const tierExactP = pickIsDrawP ? tierDataP.draw[0] : tierDataP.noDraw[0];
+        const ptsCls = pts===null?'pts-n':pts===0?'pts-0':pts>=tierExactP?'pts-3':'pts-1';
         return `<div class="player-picks-row">
           <span class="group-section-label" style="background:var(--amber-bg);color:var(--amber-text)">${round.label.split(' ')[0]}</span>
           <div class="match-teams" style="flex:1"><span class="team">${tH}</span><span class="vs" style="margin:0 6px">vs</span><span class="team">${tA}</span></div>
@@ -2130,7 +2174,10 @@ function renderCompareKnockoutByMatch() {
         const pick = (remoteData.koPicks[i] || {})[m.id];
         const pts = calcPts(i, m.id, true);
         if (!pick || pick.h == null || pick.h === '') return `<td><span style="color:var(--text3);font-size:12px">—</span></td>`;
-        const cls = pts > 9 ? 'pts-3' : pts > 0 ? 'pts-1' : pts === 0 ? 'pts-0' : 'pts-n';
+        const tierDataC = KO_SCORING[koTier(m.id)] || KO_SCORING.r32;
+        const pickIsDrawC = pick && pick.h != null && pick.h !== '' && parseInt(pick.h) === parseInt(pick.a);
+        const tierExactC = pickIsDrawC ? tierDataC.draw[0] : tierDataC.noDraw[0];
+        const cls = pts === null ? 'pts-n' : pts === 0 ? 'pts-0' : pts >= tierExactC ? 'pts-3' : 'pts-1';
         return `<td><div class="pick-cell">
           <span class="pick-score">${pick.h}–${pick.a}</span>
           <span class="pts ${cls}" style="font-size:11px;padding:1px 5px">${pts!==null?'+'+pts:'—'}</span>
@@ -2160,6 +2207,23 @@ function renderCompareKnockoutByMatch() {
       </div>
     </div>`;
   }).join('');
+}
+
+
+function setKoAdvancePick(pidx, mid, side) {
+  if (!remoteData.koPicks[pidx]) remoteData.koPicks[pidx] = {};
+  if (!remoteData.koPicks[pidx][mid]) remoteData.koPicks[pidx][mid] = {h:'',a:''};
+  remoteData.koPicks[pidx][mid].adv = side;
+  fbSet(`koPicks/${pidx}/${mid}`, remoteData.koPicks[pidx][mid]);
+  renderKnockout();
+}
+
+function setKoAdvanceReal(mid, side) {
+  if (!remoteData.koAdvances) remoteData.koAdvances = {};
+  remoteData.koAdvances[mid] = side;
+  fbSet(`koAdvances/${mid}`, side);
+  renderKnockout();
+  renderRanking();
 }
 
 // ══════════════════════════════════════════
