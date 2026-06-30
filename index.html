@@ -871,23 +871,21 @@ function calcPts(pidx, mid, isKo) {
 
   let total = 0;
 
-  // Quién pasa según el resultado real: si fue empate, lo decide el desplegable del árbitro;
-  // si no, lo decide directamente el marcador
-  const realAdvances = realIsDraw ? (remoteData.koAdvances || {})[mid] : (rh > ra ? 'h' : 'a');
-
   if (!pickIsDraw) {
-    // El jugador predijo un ganador claro (no empate) -> su elección de avance es implícita: ph>pa ? 'h' : 'a'
-    const pickAdvances = ph > pa ? 'h' : 'a';
-
+    // El jugador predijo un ganador claro (no empate)
     if (!realIsDraw) {
-      // Resultado real también tiene ganador
+      // Resultado real también tiene ganador -> el bonus de "quién pasa" NO aplica aquí,
+      // ya que acertar/fallar el signo ya determina implícitamente quién pasa
       const [exactPts, signPts] = tier.noDraw;
       if (rh === ph && ra === pa) total += exactPts;
       else if (winner(rh, ra) === winner(ph, pa)) total += signPts;
+      return total;
     }
-    // Bonus por acertar quién pasa, aplica incluso si predijo ganador pero el real fue empate
+    // Resultado real fue empate (se decide en prórroga/penaltis) -> el jugador predijo un ganador
+    // claro y por tanto sí tiene un equipo "de avance" implícito. Esto SÍ puede dar bonus.
+    const pickAdvances = ph > pa ? 'h' : 'a';
+    const realAdvances = (remoteData.koAdvances || {})[mid];
     if (realAdvances && realAdvances === pickAdvances) total += advPts;
-
     return total;
   } else {
     // El jugador predijo empate -> su elección de avance es la del desplegable "¿Quién pasa?"
@@ -897,9 +895,11 @@ function calcPts(pidx, mid, isKo) {
       const [exactPts, signPts] = tier.draw;
       if (rh === ph && ra === pa) total += exactPts;
       else total += signPts; // acertó que sería empate pero no el marcador exacto
+      const realAdvances = (remoteData.koAdvances || {})[mid];
+      if (realAdvances && pickAdvances && realAdvances === pickAdvances) total += advPts;
     }
-    // Bonus por acertar quién pasa de ronda (aplica tanto si acertó el empate como si no)
-    if (realAdvances && pickAdvances && realAdvances === pickAdvances) total += advPts;
+    // Si predijo empate pero el real NO fue empate -> 0 puntos, sin bonus posible
+    // (nunca hubo ambigüedad de "quién pasa" que el jugador pudiera acertar)
     return total;
   }
 }
