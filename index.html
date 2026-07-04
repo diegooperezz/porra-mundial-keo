@@ -741,6 +741,7 @@ function initFirebase() {
         const pidx = session.isAdmin ? 0 : session.playerIdx;
         remoteData.standingsPicks[pidx] = JSON.parse(JSON.stringify(localStandingsDraft[pidx] || {}));
       }
+      backfillKoAdvances();
       renderLoginButtons();
       if (!session) document.getElementById('login-overlay').style.display = 'flex';
       renderAll();
@@ -989,27 +990,19 @@ function resolveTeam(seed, matchContext) {
   if (matchContext && matchContext.hTeam && seed === matchContext.hSeed) return matchContext.hTeam;
   if (matchContext && matchContext.aTeam && seed === matchContext.aSeed) return matchContext.aTeam;
 
-  // W-xxx = winner of previous match
+  // W-xxx = winner of previous match — always read from koAdvances
   const mw = seed.match(/^W-(.+)$/);
   if (mw) {
     const prevId = mw[1];
-    const r = remoteData.koRealScores[prevId];
-    if (!r || r.h == null || r.h === '') return null;
-    const rh = parseInt(r.h), ra = parseInt(r.a);
-    if (isNaN(rh) || isNaN(ra)) return null;
+    const adv = (remoteData.koAdvances || {})[prevId];
+    if (!adv) return null; // not yet decided
     for (const round of KO_ROUNDS) {
       const match = round.matches.find(m => m.id === prevId);
       if (match) {
         const tH = resolveTeam(match.hSeed, match);
         const tA = resolveTeam(match.aSeed, match);
         if (!tH || !tA) return null;
-        if (rh === ra) {
-          // Draw: winner is whoever the admin picked
-          const adv = (remoteData.koAdvances || {})[prevId];
-          if (!adv) return null;
-          return adv === 'h' ? tH : tA;
-        }
-        return rh > ra ? tH : tA;
+        return adv === 'h' ? tH : tA;
       }
     }
   }
@@ -1018,23 +1011,15 @@ function resolveTeam(seed, matchContext) {
   const ml = seed.match(/^L-(.+)$/);
   if (ml) {
     const prevId = ml[1];
-    const r = remoteData.koRealScores[prevId];
-    if (!r || r.h == null || r.h === '') return null;
-    const rh = parseInt(r.h), ra = parseInt(r.a);
-    if (isNaN(rh) || isNaN(ra)) return null;
+    const adv = (remoteData.koAdvances || {})[prevId];
+    if (!adv) return null;
     for (const round of KO_ROUNDS) {
       const match = round.matches.find(m => m.id === prevId);
       if (match) {
         const tH = resolveTeam(match.hSeed, match);
         const tA = resolveTeam(match.aSeed, match);
         if (!tH || !tA) return null;
-        if (rh === ra) {
-          // Draw: loser is whoever did NOT advance
-          const adv = (remoteData.koAdvances || {})[prevId];
-          if (!adv) return null;
-          return adv === 'h' ? tA : tH;
-        }
-        return rh > ra ? tA : tH;
+        return adv === 'h' ? tA : tH; // loser is the opposite of winner
       }
     }
   }
@@ -1157,6 +1142,24 @@ function setReal(mid, side, val, isKo) {
   remoteData[key][mid][side] = val;
   fbSet(`${key}/${mid}`, remoteData[key][mid]);
   addAuditEntry(-1, mid, side, oldVal, val, isKo ? 'resultado-ko' : 'resultado');
+
+  // Auto-update koAdvances when both scores are set for a KO match
+  if (isKo) {
+    const r = remoteData[key][mid];
+    if (r.h !== '' && r.h != null && r.a !== '' && r.a != null) {
+      const rh = parseInt(r.h), ra = parseInt(r.a);
+      if (!isNaN(rh) && !isNaN(ra) && rh !== ra) {
+        // Clear winner — auto-save to koAdvances
+        if (!remoteData.koAdvances) remoteData.koAdvances = {};
+        remoteData.koAdvances[mid] = rh > ra ? 'h' : 'a';
+        if (db) db.ref('porra2026/koAdvances/' + mid).set(remoteData.koAdvances[mid]);
+      }
+      // If draw (rh === ra), koAdvances[mid] will be set manually by admin via setKoAdvanceReal
+    }
+    renderKnockout();
+    renderRanking();
+    renderCompare();
+  }
 }
 
 // ══════════════════════════════════════════
@@ -2262,6 +2265,27 @@ function setKoAdvanceReal(mid, side) {
   renderKnockout();
   renderRanking();
   renderCompare();
+}
+
+
+function backfillKoAdvances() {
+  // Auto-fill koAdvances for all KO matches that have a clear winner already stored
+  const scores = remoteData.koRealScores || {};
+  const advances = remoteData.koAdvances || {};
+  let changed = false;
+  Object.keys(scores).forEach(mid => {
+    const r = scores[mid];
+    if (!r || r.h == null || r.h === '' || r.a == null || r.a === '') return;
+    const rh = parseInt(r.h), ra = parseInt(r.a);
+    if (isNaN(rh) || isNaN(ra) || rh === ra) return; // draw: handled manually
+    const correct = rh > ra ? 'h' : 'a';
+    if (advances[mid] !== correct) {
+      advances[mid] = correct;
+      if (db) db.ref('porra2026/koAdvances/' + mid).set(correct);
+      changed = true;
+    }
+  });
+  if (changed) remoteData.koAdvances = advances;
 }
 
 // ══════════════════════════════════════════
