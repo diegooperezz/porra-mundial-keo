@@ -579,45 +579,48 @@ const GROUPS = {
 
 const KO_ROUNDS = [
   { id:'r32', label:'Dieciseisavos de final', date:'28 jun – 3 jul', matches:[
-    {id:'R01',label:'Partido 1',hSeed:'SUD',aSeed:'CAN',hTeam:'Sudáfrica',aTeam:'Canadá'},
-    {id:'R02',label:'Partido 2',hSeed:'BRA',aSeed:'JPN',hTeam:'Brasil',aTeam:'Japón'},
-    {id:'R03',label:'Partido 3',hSeed:'ALE',aSeed:'PAR',hTeam:'Alemania',aTeam:'Paraguay'},
-    {id:'R04',label:'Partido 4',hSeed:'PBA',aSeed:'MAR',hTeam:'P. Bajos',aTeam:'Marruecos'},
-    {id:'R05',label:'Partido 5',hSeed:'CMF',aSeed:'NOR',hTeam:'C. de Marfil',aTeam:'Noruega'},
-    {id:'R06',label:'Partido 6',hSeed:'FRA',aSeed:'SUE',hTeam:'Francia',aTeam:'Suecia'},
-    {id:'R07',label:'Partido 7',hSeed:'MEX',aSeed:'ECU',hTeam:'México',aTeam:'Ecuador'},
-    {id:'R08',label:'Partido 8',hSeed:'ING',aSeed:'RDC',hTeam:'Inglaterra',aTeam:'RD Congo'},
-    {id:'R09',label:'Partido 9',hSeed:'BEL',aSeed:'SEN',hTeam:'Bélgica',aTeam:'Senegal'},
-    {id:'R10',label:'Partido 10',hSeed:'USA',aSeed:'BOS',hTeam:'EE.UU.',aTeam:'Bosnia y Herz.'},
-    {id:'R11',label:'Partido 11',hSeed:'ESP',aSeed:'AUT',hTeam:'España',aTeam:'Austria'},
-    {id:'R12',label:'Partido 12',hSeed:'POR',aSeed:'CRO',hTeam:'Portugal',aTeam:'Croacia'},
-    {id:'R13',label:'Partido 13',hSeed:'SUI',aSeed:'ARG2',hTeam:'Suiza',aTeam:'Argelia'},
-    {id:'R14',label:'Partido 14',hSeed:'AUS',aSeed:'EGI',hTeam:'Australia',aTeam:'Egipto'},
-    {id:'R15',label:'Partido 15',hSeed:'ARG',aSeed:'CPV',hTeam:'Argentina',aTeam:'Cabo Verde'},
-    {id:'R16',label:'Partido 16',hSeed:'COL',aSeed:'GHA',hTeam:'Colombia',aTeam:'Ghana'},
+    {id:'R01',label:'Partido 1',hSeed:'SUD',aSeed:'CAN',hTeam:'Sudáfrica',aTeam:'Canadá',date:'28 jun'},
+    {id:'R02',label:'Partido 2',hSeed:'BRA',aSeed:'JPN',hTeam:'Brasil',aTeam:'Japón',date:'29 jun'},
+    {id:'R03',label:'Partido 3',hSeed:'ALE',aSeed:'PAR',hTeam:'Alemania',aTeam:'Paraguay',date:'29 jun'},
+    {id:'R04',label:'Partido 4',hSeed:'PBA',aSeed:'MAR',hTeam:'P. Bajos',aTeam:'Marruecos',date:'29 jun'},
+    {id:'R05',label:'Partido 5',hSeed:'CMF',aSeed:'NOR',hTeam:'C. de Marfil',aTeam:'Noruega',date:'30 jun'},
+    {id:'R06',label:'Partido 6',hSeed:'FRA',aSeed:'SUE',hTeam:'Francia',aTeam:'Suecia',date:'30 jun'},
+    {id:'R07',label:'Partido 7',hSeed:'MEX',aSeed:'ECU',hTeam:'México',aTeam:'Ecuador',date:'30 jun'},
+    {id:'R08',label:'Partido 8',hSeed:'ING',aSeed:'RDC',hTeam:'Inglaterra',aTeam:'RD Congo',date:'1 jul'},
+    {id:'R09',label:'Partido 9',hSeed:'BEL',aSeed:'SEN',hTeam:'Bélgica',aTeam:'Senegal',date:'1 jul'},
+    {id:'R10',label:'Partido 10',hSeed:'USA',aSeed:'BOS',hTeam:'EE.UU.',aTeam:'Bosnia y Herz.',date:'1 jul'},
+    {id:'R11',label:'Partido 11',hSeed:'ESP',aSeed:'AUT',hTeam:'España',aTeam:'Austria',date:'2 jul'},
+    {id:'R12',label:'Partido 12',hSeed:'POR',aSeed:'CRO',hTeam:'Portugal',aTeam:'Croacia',date:'2 jul'},
+    {id:'R13',label:'Partido 13',hSeed:'SUI',aSeed:'ARG2',hTeam:'Suiza',aTeam:'Argelia',date:'2 jul'},
+    {id:'R14',label:'Partido 14',hSeed:'AUS',aSeed:'EGI',hTeam:'Australia',aTeam:'Egipto',date:'3 jul'},
+    {id:'R15',label:'Partido 15',hSeed:'ARG',aSeed:'CPV',hTeam:'Argentina',aTeam:'Cabo Verde',date:'3 jul'},
+    {id:'R16',label:'Partido 16',hSeed:'COL',aSeed:'GHA',hTeam:'Colombia',aTeam:'Ghana',date:'3 jul'},
   ]},
   { id:'r16', label:'Octavos de final', date:'4 – 7 jul', matches:[
-    {id:'QF01',label:'Partido 17',hSeed:'W-R01',aSeed:'W-R03'},
-    {id:'QF02',label:'Partido 18',hSeed:'W-R02',aSeed:'W-R05'},
-    {id:'QF03',label:'Partido 19',hSeed:'W-R04',aSeed:'W-R06'},
-    {id:'QF04',label:'Partido 20',hSeed:'W-R07',aSeed:'W-R08'},
-    {id:'QF05',label:'Partido 21',hSeed:'W-R09',aSeed:'W-R10'},
-    {id:'QF06',label:'Partido 22',hSeed:'W-R11',aSeed:'W-R12'},
-    {id:'QF07',label:'Partido 23',hSeed:'W-R13',aSeed:'W-R15'},
-    {id:'QF08',label:'Partido 24',hSeed:'W-R14',aSeed:'W-R16'},
+    {id:'QF01',label:'Partido 17',hSeed:'PAR',aSeed:'FRA',hTeam:'Paraguay',aTeam:'Francia',date:'4 jul'},
+    {id:'QF02',label:'Partido 18',hSeed:'CAN',aSeed:'MAR',hTeam:'Canadá',aTeam:'Marruecos',date:'4 jul'},
+    {id:'QF03',label:'Partido 19',hSeed:'BRA',aSeed:'NOR',hTeam:'Brasil',aTeam:'Noruega',date:'5 jul'},
+    {id:'QF04',label:'Partido 20',hSeed:'MEX',aSeed:'ENG',hTeam:'México',aTeam:'Inglaterra',date:'5 jul'},
+    {id:'QF05',label:'Partido 21',hSeed:'POR',aSeed:'ESP',hTeam:'Portugal',aTeam:'España',date:'6 jul'},
+    {id:'QF06',label:'Partido 22',hSeed:'USA',aSeed:'BEL',hTeam:'EE.UU.',aTeam:'Bélgica',date:'6 jul'},
+    {id:'QF07',label:'Partido 23',hSeed:'ARG',aSeed:'EGI',hTeam:'Argentina',aTeam:'Egipto',date:'7 jul'},
+    {id:'QF08',label:'Partido 24',hSeed:'SUI',aSeed:'COL',hTeam:'Suiza',aTeam:'Colombia',date:'7 jul'},
   ]},
   { id:'qf', label:'Cuartos de final', date:'9 – 12 jul', matches:[
-    {id:'SF01',label:'Partido 25',hSeed:'W-QF01',aSeed:'W-QF02'},
-    {id:'SF02',label:'Partido 26',hSeed:'W-QF03',aSeed:'W-QF04'},
-    {id:'SF03',label:'Partido 27',hSeed:'W-QF05',aSeed:'W-QF06'},
-    {id:'SF04',label:'Partido 28',hSeed:'W-QF07',aSeed:'W-QF08'},
+    {id:'SF01',label:'Cuartos 1',hSeed:'W-QF01',aSeed:'W-QF02',date:'9 jul'},
+    {id:'SF02',label:'Cuartos 2',hSeed:'W-QF03',aSeed:'W-QF04',date:'9 jul'},
+    {id:'SF03',label:'Cuartos 3',hSeed:'W-QF05',aSeed:'W-QF06',date:'11 jul'},
+    {id:'SF04',label:'Cuartos 4',hSeed:'W-QF07',aSeed:'W-QF08',date:'12 jul'},
   ]},
   { id:'sf', label:'Semifinales', date:'14 – 15 jul', matches:[
-    {id:'FIN01',label:'Semifinal 1',hSeed:'W-SF01',aSeed:'W-SF02'},
-    {id:'FIN02',label:'Semifinal 2',hSeed:'W-SF03',aSeed:'W-SF04'},
+    {id:'FIN01',label:'Semifinal 1',hSeed:'W-SF01',aSeed:'W-SF02',date:'14 jul'},
+    {id:'FIN02',label:'Semifinal 2',hSeed:'W-SF03',aSeed:'W-SF04',date:'15 jul'},
+  ]},
+  { id:'3rd', label:'3er y 4º puesto', date:'18 jul', matches:[
+    {id:'THIRD',label:'3er puesto',hSeed:'L-FIN01',aSeed:'L-FIN02',date:'18 jul'},
   ]},
   { id:'final', label:'Final', date:'19 jul', matches:[
-    {id:'FINAL',label:'Final',hSeed:'W-FIN01',aSeed:'W-FIN02'},
+    {id:'FINAL',label:'Final',hSeed:'W-FIN01',aSeed:'W-FIN02',date:'19 jul'},
   ]},
 ];
 
@@ -831,6 +834,7 @@ function koTier(mid) {
   if (['QF01','QF02','QF03','QF04','QF05','QF06','QF07','QF08'].includes(mid)) return 'r16';
   if (['SF01','SF02','SF03','SF04'].includes(mid)) return 'qf';
   if (['FIN01','FIN02'].includes(mid)) return 'sf';
+  if (mid === 'THIRD') return 'sf'; // 3rd place same scoring as semis
   if (mid === 'FINAL') return 'final';
   return 'r32';
 }
@@ -839,11 +843,13 @@ function koTier(mid) {
 // noDrawPick: [exacto, signo]           — cuando el jugador predijo un marcador NO empatado
 // drawPick:   [exacto, signo, avance]   — cuando el jugador predijo un marcador empatado
 const KO_SCORING = {
-  r32:   { noDraw: [5, 3],  draw: [4, 2, 1] },   // Dieciseisavos
-  r16:   { noDraw: [5, 3],  draw: [4, 2, 1] },   // Octavos
-  qf:    { noDraw: [10, 5], draw: [8, 3, 2] },   // Cuartos
-  sf:    { noDraw: [10, 5], draw: [8, 3, 2] },   // Semifinales
-  final: { noDraw: [25, 10],draw: [20, 5, 5] },  // Final
+  // noDraw: [exacto, signo]    — predicción de ganador claro
+  // draw:   [exacto, signo, bonus_avance]  — predicción de empate
+  r32:   { noDraw: [4, 2],  draw: [4, 2, 1] },   // Dieciseisavos
+  r16:   { noDraw: [4, 2],  draw: [4, 2, 1] },   // Octavos
+  qf:    { noDraw: [8, 3],  draw: [8, 3, 2] },   // Cuartos
+  sf:    { noDraw: [8, 3],  draw: [8, 3, 2] },   // Semifinales
+  final: { noDraw: [20, 5], draw: [20, 5, 5] },  // Final
 };
 
 function calcPts(pidx, mid, isKo) {
@@ -857,51 +863,51 @@ function calcPts(pidx, mid, isKo) {
   if (isNaN(rh)||isNaN(ra)||isNaN(ph)||isNaN(pa)) return null;
 
   if (!isKo) {
-    // Groups: 3 exact, 1 sign
     if (rh === ph && ra === pa) return 3;
     if (winner(rh, ra) === winner(ph, pa)) return 1;
     return 0;
   }
 
-  // Knockout: puntuación depende de si el jugador predijo empate o no
   const tier = KO_SCORING[koTier(mid)] || KO_SCORING.r32;
   const pickIsDraw = (ph === pa);
   const realIsDraw = (rh === ra);
   const advPts = tier.draw[2];
 
+  // Who actually advanced
+  const realAdvances = realIsDraw
+    ? (remoteData.koAdvances || {})[mid]
+    : (rh > ra ? 'h' : 'a');
+
+  // Who the player implicitly/explicitly picked to advance
+  const pickAdvances = pickIsDraw ? p.adv : (ph > pa ? 'h' : 'a');
+
   let total = 0;
 
   if (!pickIsDraw) {
-    // El jugador predijo un ganador claro (no empate)
+    // Player predicted a clear winner
     if (!realIsDraw) {
-      // Resultado real también tiene ganador -> el bonus de "quién pasa" NO aplica aquí,
-      // ya que acertar/fallar el signo ya determina implícitamente quién pasa
+      // Real result also has a clear winner
       const [exactPts, signPts] = tier.noDraw;
       if (rh === ph && ra === pa) total += exactPts;
       else if (winner(rh, ra) === winner(ph, pa)) total += signPts;
-      return total;
     }
-    // Resultado real fue empate (se decide en prórroga/penaltis) -> el jugador predijo un ganador
-    // claro y por tanto sí tiene un equipo "de avance" implícito. Esto SÍ puede dar bonus.
-    const pickAdvances = ph > pa ? 'h' : 'a';
-    const realAdvances = (remoteData.koAdvances || {})[mid];
-    if (realAdvances && realAdvances === pickAdvances) total += advPts;
-    return total;
-  } else {
-    // El jugador predijo empate -> su elección de avance es la del desplegable "¿Quién pasa?"
-    const pickAdvances = p.adv;
+    // Advance bonus: only if player's implied winner matches who actually advanced
+    // (works both when real result has winner OR when it was a draw resolved by penalties)
+    if (realAdvances && pickAdvances && realAdvances === pickAdvances) total += advPts;
 
+  } else {
+    // Player predicted a draw
     if (realIsDraw) {
       const [exactPts, signPts] = tier.draw;
       if (rh === ph && ra === pa) total += exactPts;
-      else total += signPts; // acertó que sería empate pero no el marcador exacto
-      const realAdvances = (remoteData.koAdvances || {})[mid];
+      else total += signPts;
+      // Advance bonus: only when real result was also a draw
       if (realAdvances && pickAdvances && realAdvances === pickAdvances) total += advPts;
     }
-    // Si predijo empate pero el real NO fue empate -> 0 puntos, sin bonus posible
-    // (nunca hubo ambigüedad de "quién pasa" que el jugador pudiera acertar)
-    return total;
+    // If predicted draw but real had clear winner: 0 pts, no bonus
   }
+
+  return total;
 }
 
 // Group standings prediction scoring: 3pts per position correct, 10 if all 4 correct
@@ -979,8 +985,7 @@ function groupStandings(g) {
 function resolveTeam(seed, matchContext) {
   if (!seed) return null;
 
-  // R32 teams are fixed (already known from group stage)
-  // They are stored directly in the match definition
+  // Fixed teams stored directly in match definition (R32 and R16)
   if (matchContext && matchContext.hTeam && seed === matchContext.hSeed) return matchContext.hTeam;
   if (matchContext && matchContext.aTeam && seed === matchContext.aSeed) return matchContext.aTeam;
 
@@ -991,15 +996,45 @@ function resolveTeam(seed, matchContext) {
     const r = remoteData.koRealScores[prevId];
     if (!r || r.h == null || r.h === '') return null;
     const rh = parseInt(r.h), ra = parseInt(r.a);
-    if (isNaN(rh) || isNaN(ra) || rh === ra) return null;
-    // Find what teams played that match
+    if (isNaN(rh) || isNaN(ra)) return null;
     for (const round of KO_ROUNDS) {
       const match = round.matches.find(m => m.id === prevId);
       if (match) {
         const tH = resolveTeam(match.hSeed, match);
         const tA = resolveTeam(match.aSeed, match);
         if (!tH || !tA) return null;
+        if (rh === ra) {
+          // Draw: winner is whoever the admin picked
+          const adv = (remoteData.koAdvances || {})[prevId];
+          if (!adv) return null;
+          return adv === 'h' ? tH : tA;
+        }
         return rh > ra ? tH : tA;
+      }
+    }
+  }
+
+  // L-xxx = loser of previous match (for 3rd place)
+  const ml = seed.match(/^L-(.+)$/);
+  if (ml) {
+    const prevId = ml[1];
+    const r = remoteData.koRealScores[prevId];
+    if (!r || r.h == null || r.h === '') return null;
+    const rh = parseInt(r.h), ra = parseInt(r.a);
+    if (isNaN(rh) || isNaN(ra)) return null;
+    for (const round of KO_ROUNDS) {
+      const match = round.matches.find(m => m.id === prevId);
+      if (match) {
+        const tH = resolveTeam(match.hSeed, match);
+        const tA = resolveTeam(match.aSeed, match);
+        if (!tH || !tA) return null;
+        if (rh === ra) {
+          // Draw: loser is whoever did NOT advance
+          const adv = (remoteData.koAdvances || {})[prevId];
+          if (!adv) return null;
+          return adv === 'h' ? tA : tH;
+        }
+        return rh > ra ? tA : tH;
       }
     }
   }
