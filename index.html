@@ -874,12 +874,10 @@ function calcPts(pidx, mid, isKo) {
   const realIsDraw = (rh === ra);
   const advPts = tier.draw[2];
 
-  // Who actually advanced
-  const realAdvances = realIsDraw
-    ? (remoteData.koAdvances || {})[mid]
-    : (rh > ra ? 'h' : 'a');
+  // Who actually advanced (always from koAdvances — auto-filled for clear winners)
+  const realAdvances = (remoteData.koAdvances || {})[mid];
 
-  // Who the player implicitly/explicitly picked to advance
+  // Who the player picked to advance (implicit for clear winner pick, explicit for draw pick)
   const pickAdvances = pickIsDraw ? p.adv : (ph > pa ? 'h' : 'a');
 
   let total = 0;
@@ -887,25 +885,24 @@ function calcPts(pidx, mid, isKo) {
   if (!pickIsDraw) {
     // Player predicted a clear winner
     if (!realIsDraw) {
-      // Real result also has a clear winner
       const [exactPts, signPts] = tier.noDraw;
       if (rh === ph && ra === pa) total += exactPts;
       else if (winner(rh, ra) === winner(ph, pa)) total += signPts;
     }
-    // Advance bonus: only if player's implied winner matches who actually advanced
-    // (works both when real result has winner OR when it was a draw resolved by penalties)
+    // Advance bonus: always applies if pick matches who advanced
     if (realAdvances && pickAdvances && realAdvances === pickAdvances) total += advPts;
 
   } else {
     // Player predicted a draw
     if (realIsDraw) {
+      // Real was also a draw — award draw scoring
       const [exactPts, signPts] = tier.draw;
       if (rh === ph && ra === pa) total += exactPts;
       else total += signPts;
-      // Advance bonus: only when real result was also a draw
-      if (realAdvances && pickAdvances && realAdvances === pickAdvances) total += advPts;
     }
-    // If predicted draw but real had clear winner: 0 pts, no bonus
+    // Advance bonus: always applies if pick matches who advanced,
+    // regardless of whether real result was a draw or not
+    if (realAdvances && pickAdvances && realAdvances === pickAdvances) total += advPts;
   }
 
   return total;
