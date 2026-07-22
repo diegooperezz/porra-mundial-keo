@@ -2048,4 +2048,273 @@ function renderCompareByStandings() {
       ${players.map((_,pidx) => {
         const pts = standingsPts(pidx, g);
         const cls = pts===null?'pts-n':pts===10?'pts-3':pts>0?'pts-1':'pts-0';
-        return `<td><span class="pts ${cls}" style="font-size:12px">${pts!==null?pts:'—'}</span></t
+        return `<td><span class="pts ${cls}" style="font-size:12px">${pts!==null?pts:'—'}</span></td>`;
+      }).join('')}
+    </tr>`;
+
+    return `<div style="margin-bottom:1.5rem">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span class="group-letter">Grupo ${g}</span>
+        <span style="font-size:13px;color:var(--text2)">${teams.join(' · ')}</span>
+        ${!realOrder?'<span style="font-size:12px;color:var(--text3)">En curso</span>':''}
+      </div>
+      <div class="compare-table-wrap">
+        <table class="compare-table">
+          <thead><tr>
+            <th style="min-width:40px">Pos</th>
+            <th style="background:var(--green-bg);color:var(--green-text)">Real</th>
+            ${headerCols}
+          </tr></thead>
+          <tbody>${rows}${ptsRow}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+
+// ══════════════════════════════════════════
+// PENALIZACIONES
+// ══════════════════════════════════════════
+function renderPenaltyList() {
+  const tbody = document.getElementById('penalty-tbody');
+  if (!tbody) return;
+  const penalties = remoteData.penalties || {};
+  tbody.innerHTML = remoteData.players.map((name, i) => {
+    const pen = penalties[i] || { pts: 0, note: '' };
+    const pts = Number(pen.pts) || 0;
+    const color = pts < 0 ? 'var(--red-text)' : pts > 0 ? 'var(--green-text)' : 'var(--text)';
+    return `<tr>
+      <td style="padding:6px;font-weight:600;font-size:14px">${name}
+        <span style="font-size:13px;font-weight:700;margin-left:8px;color:${color}">${pts>0?'+':''}${pts}</span>
+      </td>
+      <td style="padding:6px">
+        <input type="number" id="pen-pts-${i}" value="${pts}"
+          style="width:80px;padding:7px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);font-size:14px;text-align:center;background:var(--surface);color:var(--text)">
+      </td>
+      <td style="padding:6px">
+        <input type="text" id="pen-note-${i}" value="${pen.note||''}" placeholder="Motivo"
+          style="width:100%;padding:7px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);font-size:13px;background:var(--surface);color:var(--text)">
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+
+
+function savePenalties() {
+  const penalties = {};
+  remoteData.players.forEach((_, i) => {
+    const pts = parseInt(document.getElementById('pen-pts-' + i)?.value) || 0;
+    const note = document.getElementById('pen-note-' + i)?.value.trim() || '';
+    penalties[i] = { pts, note };
+  });
+  remoteData.penalties = penalties;
+  fbSet('penalties', penalties);
+  renderRanking();
+  renderPenaltyList();
+  alert('✅ Penalizaciones guardadas.');
+}
+
+// ══════════════════════════════════════════
+// AUDITORÍA
+// ══════════════════════════════════════════
+
+
+
+
+
+
+
+// ══════════════════════════════════════════
+// AUDITORÍA (solo escribe en Firebase, sin UI)
+// ══════════════════════════════════════════
+function addAuditEntry(pidx, mid, side, oldVal, newVal, type) {
+  if (oldVal === newVal) return;
+  if ((oldVal === '' || oldVal == null) && (newVal === '' || newVal == null)) return;
+  const player = pidx === -1 ? 'Árbitro' : (remoteData.players[pidx] || 'Jugador_' + pidx);
+  const now = new Date();
+  const ts = now.getTime();
+  const fecha = now.toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'});
+  const hora  = now.toLocaleTimeString('es-ES', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const entry = {
+    fecha,
+    hora,
+    ts,
+    jugador: player,
+    partido: mid,
+    campo: side === 'h' ? 'local' : 'visitante',
+    tipo: type,
+    anterior: oldVal ?? '—',
+    nuevo: newVal
+  };
+  // Key: timestamp + random suffix to avoid collisions
+  const key = ts + '_' + Math.random().toString(36).slice(2, 7);
+  if (db) db.ref('auditLog/' + key).set(entry);
+}
+
+
+function repairPlayerIndex() {
+  // Read from window vars (set on every keystroke) — immune to re-renders wiping the DOM input
+  const fromVal = window._repairFrom ?? document.getElementById('repair-from')?.value ?? '';
+  const toVal = window._repairTo ?? document.getElementById('repair-to')?.value ?? '';
+  const from = parseInt(fromVal);
+  const to = parseInt(toVal);
+  if (fromVal === '' || toVal === '') return alert('Rellena ambos campos antes de pulsar el botón.');
+  if (isNaN(from) || isNaN(to)) return alert('Introduce ambos índices como números válidos.');
+  if (from === to) return alert('Los índices deben ser distintos.');
+  if (!confirm(`¿Mover TODOS los datos del índice ${from} al índice ${to}? Si el índice ${to} ya tiene datos, se sobrescribirán. Esta acción no se puede deshacer.`)) return;
+
+  const keys = ['picks', 'koPicks', 'standingsPicks', 'standingsSaved', 'penalties'];
+  keys.forEach(key => {
+    const data = remoteData[key] || {};
+    const fromData = data[from];
+    if (fromData !== undefined) {
+      // Write to new index
+      fbSet(`${key}/${to}`, fromData);
+      // Delete old index
+      fbSet(`${key}/${from}`, null);
+    }
+  });
+
+  alert(`✅ Datos movidos de índice ${from} a ${to}. Recarga la página para ver los cambios.`);
+}
+
+
+function renderCompareKnockoutByMatch() {
+  const container = document.getElementById('compare-container');
+  const players = remoteData.players;
+
+  container.innerHTML = KO_ROUNDS.map(round => {
+    const playedMatches = round.matches.filter(m => {
+      const r = remoteData.koRealScores[m.id];
+      return r && r.h != null && r.h !== '';
+    });
+
+    if (playedMatches.length === 0) return `
+      <div style="margin-bottom:1.5rem">
+        <div style="font-size:14px;font-weight:600;color:var(--text2);margin-bottom:6px">${round.label}</div>
+        <div style="font-size:13px;color:var(--text3);padding:12px;background:var(--surface);border-radius:var(--radius-sm)">Sin partidos disputados aún</div>
+      </div>`;
+
+    const headerCols = players.map(p => `<th style="text-align:center;min-width:80px;font-size:12px">${p}</th>`).join('');
+
+    const rows = playedMatches.map(m => {
+      const tH = resolveTeam(m.hSeed, m);
+      const tA = resolveTeam(m.aSeed, m);
+      const real = remoteData.koRealScores[m.id];
+      const realStr = `${real.h}–${real.a}`;
+      const pickCols = players.map((p, i) => {
+        const pick = (remoteData.koPicks[i] || {})[m.id];
+        const pts = calcPts(i, m.id, true);
+        if (!pick || pick.h == null || pick.h === '') return `<td><span style="color:var(--text3);font-size:12px">—</span></td>`;
+        const tierDataC = KO_SCORING[koTier(m.id)] || KO_SCORING.r32;
+        const pickIsDrawC = pick && pick.h != null && pick.h !== '' && parseInt(pick.h) === parseInt(pick.a);
+        const tierExactC = pickIsDrawC ? tierDataC.draw[0] : tierDataC.noDraw[0];
+        const cls = pts === null ? 'pts-n' : pts === 0 ? 'pts-0' : pts >= tierExactC ? 'pts-3' : 'pts-1';
+        return `<td><div class="pick-cell">
+          <span class="pick-score">${pick.h}–${pick.a}</span>
+          <span class="pts ${cls}" style="font-size:11px;padding:1px 5px">${pts!==null?'+'+pts:'—'}</span>
+        </div></td>`;
+      }).join('');
+
+      return `<tr>
+        <td class="match-info">
+          <div class="match-name" style="font-size:13px">${tH||m.hSeed} vs ${tA||m.aSeed}</div>
+        </td>
+        <td><span class="real-score-cell">${realStr}</span></td>
+        ${pickCols}
+      </tr>`;
+    }).join('');
+
+    return `<div style="margin-bottom:1.5rem">
+      <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px">${round.label}</div>
+      <div class="compare-table-wrap">
+        <table class="compare-table">
+          <thead><tr>
+            <th class="match-col">Partido</th>
+            <th style="background:var(--green-bg);color:var(--green-text)">Resultado</th>
+            ${headerCols}
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+
+function setKoAdvancePick(pidx, mid, side) {
+  if (!remoteData.koPicks[pidx]) remoteData.koPicks[pidx] = {};
+  if (!remoteData.koPicks[pidx][mid]) remoteData.koPicks[pidx][mid] = {h:'',a:''};
+  remoteData.koPicks[pidx][mid].adv = side;
+  fbSet(`koPicks/${pidx}/${mid}`, remoteData.koPicks[pidx][mid]);
+  renderKnockout();
+}
+
+function setKoAdvanceReal(mid, side) {
+  if (!remoteData.koAdvances) remoteData.koAdvances = {};
+  remoteData.koAdvances[mid] = side;
+  // Write to Firebase
+  if (db) db.ref('porra2026/koAdvances/' + mid).set(side);
+  // Re-render immediately with updated local state — don't wait for Firebase roundtrip
+  renderKnockout();
+  renderRanking();
+  renderCompare();
+}
+
+
+function backfillKoAdvances() {
+  // Auto-fill koAdvances for all KO matches that have a clear winner already stored
+  const scores = remoteData.koRealScores || {};
+  const advances = remoteData.koAdvances || {};
+  let changed = false;
+  Object.keys(scores).forEach(mid => {
+    const r = scores[mid];
+    if (!r || r.h == null || r.h === '' || r.a == null || r.a === '') return;
+    const rh = parseInt(r.h), ra = parseInt(r.a);
+    if (isNaN(rh) || isNaN(ra) || rh === ra) return; // draw: handled manually
+    const correct = rh > ra ? 'h' : 'a';
+    if (advances[mid] !== correct) {
+      advances[mid] = correct;
+      if (db) db.ref('porra2026/koAdvances/' + mid).set(correct);
+      changed = true;
+    }
+  });
+  if (changed) remoteData.koAdvances = advances;
+}
+
+// ══════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════
+function showTab(name) {
+  // Show/hide sections
+  ['picks','knockout','standings','compare','ranking','settings'].forEach(t => {
+    const el = document.getElementById('tab-'+t);
+    if (el) el.style.display = t === name ? '' : 'none';
+  });
+  // Highlight correct button by matching onclick attribute
+  document.querySelectorAll('.tab').forEach(btn => {
+    const match = btn.getAttribute('onclick') && btn.getAttribute('onclick').includes("'"+name+"'");
+    btn.classList.toggle('active', !!match);
+  });
+  if (name === 'knockout') renderKnockout();
+  if (name === 'ranking') renderRanking();
+  if (name === 'standings') renderStandings();
+  if (name === 'compare') renderCompare();
+  if (name === 'settings') {
+    renderLockControl();
+    renderSettingsPlayers();
+    renderPenaltyList();
+    updateWindowStatusText();
+  }
+}
+
+// ══════════════════════════════════════════
+// ARRANQUE
+// ══════════════════════════════════════════
+initFirebase();
+updateLockIndicator();
+</script>
+</body>
+</html>
